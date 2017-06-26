@@ -1,3 +1,4 @@
+<pre>
 
  Pinger-XRay is here!-)
 
@@ -137,3 +138,5 @@
 
  Cheers,
  Dmitry Shevkoplyas
+
+</pre>
