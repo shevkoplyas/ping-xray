@@ -1,0 +1,695 @@
+#!/bin/bash
+
+# Pinger-XRay is here!-)
+#
+# Short description
+#
+# pingxer-xray sends small (12 bytes payload) ICMP (type=8 ECHO) packets to the multiple targets.
+#    Dependency: require fping
+#                  Ubuntu: sudo apt install fping
+#                Mac OS-X: brew insall fping  (if you use Homebrew package management - https://brew.sh/ )
+# Supported OSs: Linux & OS-X
+#   For updates: https://dimon.ca/ping-xray
+#                https://github.com/shevkoplyas/ping-xray
+#  For feedback: shevkoplyas at gmail dot com. Please report bugs/improvements/etc.
+#
+# (c) dimon.ca
+#
+#
+#
+# Description:
+#
+# Often we have questions about quality of our internet, especially when trading.
+# When something seems to be not working right it is really hard to pinpoint which
+# one particular wheel is squeaking in your setup especially when we have so many
+# moving parts!
+#
+# What if your LAN is failing you (too much noise on wifi? faulty ethernet
+# cables? bandwidth problems? etc.)
+# Or what if your ISP experience rush hours and is too busy with folks streaming
+# too many movies and just throttling your connection? Or what if you internet
+# is just fine, but broker's server/link is stressed out?
+#
+# After the fact you might start asking support people here and there, but without any
+# proofs on your hands they will be just pointing fingers to each other and bad weather
+# or some other "mysterious" BS.
+#
+# And here comes the ping-xray, which allows you to:
+#	- ping multiple targets simultaneously
+#	- visually see the output with 1 second resolution
+#	  (one terminlal can show 2-3 hours history for lots of target hosts)!
+#	- create log files with unique filename, so you have it for the record.
+#	  (log file would have timestamp in it's name, so it is safe to restart the tool
+#	   without loosing any of the previus data)
+#	- create one CSV file with all targets exact round-trip delay time (exact milliseconds)
+#
+# ping-xray comes in two flaivors:
+#	- ping-xray-simple
+#	- ping-xray (fancy ascii "gui")
+#
+# First tool "ping-xray-simple" is just couple hundred lines of code script, which takes
+# arbitrary number of targets to poing (IP or hostnames with optional description, see example below),
+# and it pings them every N seconds (by default once per second) untill you stop it.
+#
+# For example if you run:
+#    ./ping-xray-simple 192.168.3.1 24.212.218.1 8.8.8.8 google.com gw1.ibllc.com gw2.ibllc.com
+#
+# Pinger creates 'ping-xray-output/' folder and writes logs: one log file per target plus one
+# CSV file with Round-trip delay time (milliseconds) for all targets (one line = one second).
+# Here's an example output of ping-xray-simple, which shows you last few lines of monitored.
+# Basically it is trying to tail all created files and share the available screen lines equally:
+#
+#  ==> 20170622_00_28_03.csv <==
+#  1498106030,2.18,21.5,68.1,32.1,64.6,71.1
+#  1498106031,10.7,20.9,43.6,20.6,43.0,36.4
+#  1498106032,5.75,22.2,46.8,21.8,44.9,38.3
+#  1498106033,1.99,11.7,36.6,11.7,32.2,30.0
+#  1498106034,1.93,15.7,41.1,16.2,35.4,38.8
+#
+#  ==> 20170622_00_28_03_192.168.3.1 <==
+#  2017-06-22 00:29 ................................1..1.......................
+#  2017-06-22 00:30 ............................................................
+#  2017-06-22 00:31 ......................................................X.....
+#  2017-06-22 00:32 ............................................................
+#  2017-06-22 00:33 ..................................................X....
+#  ==> 20170622_00_28_03_24.212.218.1 <==
+#  2017-06-22 00:29 ................................1.11..............1........
+#  2017-06-22 00:30 ..................................X.........................
+#  2017-06-22 00:31 ............................................................
+#  2017-06-22 00:32 ............................................................
+#  2017-06-22 00:33 .......................................................
+#  ==> 20170622_00_28_03_8.8.8.8 <==
+#  2017-06-22 00:29 ................................1112..............1........
+#  2017-06-22 00:30 ............................................................
+#  2017-06-22 00:31 ............................................................
+#  2017-06-22 00:32 ....................1.......................................
+#  2017-06-22 00:33 .......................................................
+#  ==> 20170622_00_28_03_google.com <==
+#  2017-06-22 00:29 ................................1.11..............1........
+#  2017-06-22 00:30 ............................................................
+#  2017-06-22 00:31 ..............................X.............................
+#  2017-06-22 00:32 ............................................................
+#  2017-06-22 00:33 .......................................................
+#  ==> 20170622_00_28_03_gw1.ibllc.com <==
+#  2017-06-22 00:29 ...................1............1111..............1........
+#  2017-06-22 00:30 ............................................................
+#  2017-06-22 00:31 ............................................................
+#  2017-06-22 00:32 ....................1............X..........................
+#  2017-06-22 00:33 .......................................................
+#  ==> 20170622_00_28_03_gw2.ibllc.com <==
+#  2017-06-22 00:29 ......X....X....................1111..............1........
+#  2017-06-22 00:30 ............................X...............................
+#  2017-06-22 00:31 ............................................................
+#  2017-06-22 00:32 ....................1.............................1.........
+#  2017-06-22 00:33 .......................................................
+#
+# , where "." - successfull PING reply received back in less than 100 ms,
+#         "1" - ping took 100-199ms
+#         "2" - ping took 200-299ms
+#         "3" - ping took 300-399ms, etc.
+#         "X" - failed to get PING reply (ICMP ECHO) from the target.
+#
+# The second offered tool is "ping-xray". It provides similar functionality to
+# the "ping-xray-simple", but it uses "bash simple curses" to draw "windows" with
+# all the results in one terminal window using special ASCII symbols for 
+# pseudo-graphics (lines, colours etc.)  If you resize your terminal window, you'll
+# need to re-start the ping-xray (it does not catch the window size change dynamically yet).
+#
+# See screenshots: https://dimon.ca/ping-xray/screenshots
+#
+# When, for example, you see the degradation or "X" happening in all targets, including your router,
+# then obviously there's no need to call to ISP or broker's support line and you need to find out
+# what causing those problems on your end. ;)
+#
+# Usually I'd recommend to run the pinger for the whole trading day and ping at least 3 targets:
+#	1) your router (on your LAN)
+#	2) your ISP gateway (1st IP outside your lan on the ISP end)
+#	3) some more distant public targets, like google.com and your broker's server.
+#
+# If your broker (or other target server) does not allow ICMP, then you can use "TCP SYN Ping"
+# with much less aggressive rate of you ping requests (ping-xray not yet supports TCP SYN Ping).
+# Or alternatively you can check tcp-traceroute from you to your broker server and choose
+# some other pingable target few hops away from your real target.
+#
+
+# =============================================================================
+
+# We simply sleep N seconds before sending next ICMP probe to the target.
+# By default it is 1 second, but if you find it too agressive, you might increase it.
+# Note: the value is in "milliseconds".
+SLEEP_BEFORE_NEXT_PING_MS=1000
+
+# You might want to see all the pings updated on your screen every second, which might
+# take 5-7% of your CPU (depend on your hardware of cause). Default suggested refresh
+# rate is once every 2-3 seconds.
+#
+REFRESH_SCREEN_EACH_N_SECONDS=2
+
+# cd to script folder and get it's full absolute path (instead of relative path)
+BASE_DIR=$(dirname $0)
+cd ${BASE_DIR}
+BASE_DIR=`pwd`
+
+# This script will create following subdirectory for all it's logs and CSV files.
+# If you prefer other location, specify it here:
+LOG_DIR="${BASE_DIR}/ping-xray-output"
+
+
+
+
+
+
+
+
+# ----------------------- do not edit below this line --------------------------
+
+
+
+
+
+
+
+
+# script will need to know it's name, since child processes (each target pinged in separate
+# background process) will need to check if parent process is still alive (otherwise child
+# terminates itself). On linux the parend process would have same name as this script name,
+# but on OS-X the parent process name is "/bin/bash".
+SCRIPT_NAME=`basename "$0"`
+
+# ps command truncates the script name down to 15 characters. There are forms of ps command
+# which would allow to have process name not truncates, but we need one that reliably works
+# on both Linux and OS-X, so it might be easier to allow "ps" command to shorten the script
+# name and we'll do the same for proper regexp match (from child process when it checks if
+# parent is still alive). Todo: find good "ps" command that works on both and get rid of this hack.
+#
+SCRIPT_NAME_TRUNC15="${SCRIPT_NAME:0:15}"
+
+# make sure $LOG_DIR exists
+if [ ! -d ${LOG_DIR} ]; then
+    echo "creating log folder: ${LOG_DIR}"
+    mkdir -p ${LOG_DIR}
+    RES=$?
+    if [ ${RES} -ne 0 ]; then
+	echo "error: failed to create folder ${LOG_DIR}" >&2
+	exit 1
+    fi
+fi
+
+# if no arguments specified report an error and exit
+if [ "${1}" == "" ]; then
+    echo "error: please specify at least one target to ping" >&2
+    exit 1
+fi
+
+# construct array of targets
+TARGETS=( "$@" )
+TARGETS_LENGTH=${#TARGETS[@]}
+TARGETS_LAST_INDEX=$(( TARGETS_LENGTH - 1 ))
+echo "array length: ${TARGETS_LENGTH}"
+echo "TARGETS_LAST_INDEX: ${TARGETS_LAST_INDEX}"
+
+# declare an array of target's labels. Those are optional and can be given by user
+# in the following form: "1.2.3.4_Wi-fi_Router"
+declare -a TARGETS_LABELS
+
+# let's review targets and separate/isolate optional labels (stars with "_")
+shopt -s extglob  # https://stackoverflow.com/a/41422027/7022062 - we'll replace all "_" with " " inside the labels
+for idx in "${!TARGETS[@]}"; do
+    if [[ ${TARGETS[$idx]} =~ ([^_]+)_(.*) ]]; then
+	TARGETS[$idx]="${BASH_REMATCH[1]}"		# rewrite i-th target w/o label
+	iLABEL="${BASH_REMATCH[2]}"
+	TARGETS_LABELS[$idx]="${iLABEL//+([_])/ }"	# store label
+    fi
+done
+
+################################################################################
+#
+# Function get_target_index() returns integer value of the given target server in TARGETS array.
+# Function returns 255 if no value found in the array (should never happen in ping-xray use cases).
+#
+# Usage example:
+#   get_target_index "1.2.3.4"
+#   tareget_index=$?
+#
+# anything !=255 is an index of the item.
+# If you need bigger numbers or strings, just return value by setting some environment variable,
+# like: get_target_index_result="anything can go here..."
+#
+function get_target_index() {
+    TARGET=$1
+    #for (( i=0; i<${TARGETS_LENGTH}; i++ )); do
+    for i in "${!TARGETS[@]}"; do
+	if [ "${TARGET}" == "${TARGETS[$i]}" ]; then
+	    return $i
+	fi
+    done
+    return 255
+}
+
+################################################################################
+#
+# f-n get_sym_for_rtt_ms_rounded()
+#    - gets global value $rtt_ms_rounded
+#    - sets global value $sym_for_rtt_ms_rounded
+#
+# Nice bash-color table
+# https://askubuntu.com/questions/821157/print-a-256-color-test-pattern-in-the-terminal
+# table itself: https://i.imgur.com/okBgrw4.png
+#
+# Easy Javascript Colormaps - builds an array of hex values ('hex') or an array of length 4 arrays containing rgba values ('rgb') or an rgba css string ('rgbaString').
+# https://github.com/bpostlethwaite/colormap - awesome!
+#
+declare -a COLORMAP
+
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;2;213;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;5;219;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;9;225;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;13;231;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;17;237;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;21;243;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;26;249;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;32;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;38;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;44;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;51;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;58;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;66;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;74;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;82;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;92;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;101;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;113;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;124;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;136;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;148;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;161;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;173;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;177;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;181;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;185;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;189;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;194;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;198;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;202;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;206;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;210;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;214;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;218;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;222;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;226;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;230;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;235;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;239;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;243;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;247;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;251;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;255;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;255;255;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;255;251;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;255;247;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;255;243;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;255;239;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;255;234;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;255;230;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;254;226;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;254;222;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;254;218;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;254;214;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;254;210;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;254;206;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;254;202;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;254;197;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;254;193;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;254;189;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;254;185;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;254;181;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;253;177;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;253;173;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;253;169;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;253;165;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;253;160;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;253;156;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;253;152;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;253;148;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;253;144;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;253;140;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;253;136;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;253;132;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;253;127;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;252;123;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;252;119;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;252;115;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;252;111;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;252;107;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;252;103;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;252;99;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;252;95;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;252;90;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;252;86;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;252;82;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;252;78;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;251;74;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;251;70;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;251;66;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;251;62;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;251;58;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;251;53;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;251;49;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;251;45;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;251;41;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;251;37;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;251;33;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;251;29;0;m"
+COLORMAP[${#COLORMAP[*]}]="\033[38;2;250;25;0;m"
+
+function get_sym_for_rtt_ms_rounded() {
+	if (( $rtt_ms_rounded < 100 )); then
+	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}."  # '%?' is here to drop last digit, so instead of 0..999 we have 0..99
+	    return
+	elif (( $rtt_ms_rounded < 200 )); then
+	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}1"
+	    return
+	elif (( $rtt_ms_rounded < 300 )); then
+	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}2"
+	    return
+	elif (( $rtt_ms_rounded < 400 )); then
+	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}3"
+	    return
+	elif (( $rtt_ms_rounded < 500 )); then
+	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}4"
+	    return
+	elif (( $rtt_ms_rounded < 600 )); then
+	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}5"
+	    return
+	elif (( $rtt_ms_rounded < 700 )); then
+	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}6"
+	    return
+	elif (( $rtt_ms_rounded < 800 )); then
+	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}7"
+	    return
+	elif (( $rtt_ms_rounded < 900 )); then
+	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}8"
+	    return
+	elif (( $rtt_ms_rounded < 1000 )); then
+	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}9"
+	    return
+	else
+	    sym_for_rtt_ms_rounded='SHOULDNEVERHAPPEN_PLEASE_FIX'  # the max expected value of RTT is 999, so this should never happen
+	fi
+}
+
+# Tried some alternatives.. may be some "ascii heat map" can be used here
+# to make output more human-readable. Colours would be a good idea, but not for v.0.0.1 ;)
+#
+#function get_sym_for_rtt_ms_rounded_ALTERNATIVE3() {
+#	if (( $rtt_ms_rounded < 200 )); then
+#	    sym_for_rtt_ms_rounded=' '
+#	    return
+#	elif (( $rtt_ms_rounded >= 200 )) && (( $rtt_ms_rounded < 400 )); then
+#	    sym_for_rtt_ms_rounded='.'
+#	    return
+#	elif (( $rtt_ms_rounded >= 400 )) && (( $rtt_ms_rounded < 600 )); then
+#	    sym_for_rtt_ms_rounded='_'
+#	    return
+#	elif (( $rtt_ms_rounded >= 600 )) && (( $rtt_ms_rounded < 800 )); then
+#	    sym_for_rtt_ms_rounded='='
+#	    return
+#	elif (( $rtt_ms_rounded >= 800 )); then
+#	    sym_for_rtt_ms_rounded='z'
+#	    return
+#	else
+#	    sym_for_rtt_ms_rounded='SHOULDNEVERHAPPEN'
+#	fi
+#}
+
+################################################################################
+#
+# get_YYYYMMDDHHMM_by_epoch_s() 
+#    - gets the only argument: epoch seconds integer value
+#    - sets YYYYMMDDHHMM_by_epoch_s
+#
+function get_YYYYMMDDHHMM_by_epoch_s() {
+    ## try to get OS name (works on OS-X and Linux)
+    #OS_NAME=`uname -s`
+
+    epoch_s=$1
+
+    # get date/time OS-specific by given epoch_s
+    if [ "${OS_NAME}" == "Linux" ]; then
+        # we're running on linux
+        # date -d @1361234760
+        # date -d @1361234760 +'%Y-%m-%d %H:%M:%S'
+        date=$( date -d @${epoch_s} +'%Y-%m-%d %H:%M:%S' )
+            read Y M D h m s <<< ${date//[-: ]/ }
+
+    elif [ "${OS_NAME}" == "Darwin" ]; then
+        # we're running on OS-X
+        # date -r 1361234760
+        # date -r 1361234760 +'%Y-%m-%d %H:%M:%S'
+        date=$( date -r ${epoch_s} +'%Y-%m-%d %H:%M:%S' )
+        read Y M D h m s <<< ${date//[-: ]/ }
+    else
+        echo "Error: can not identify OS, please fix. Details: 'uname -s' returned '#{OS_NAME}', but I can only understand 'Linux' or 'Darwin'." >&2
+        exit 1
+    fi
+    YYYYMMDDHHMM_by_epoch_s="$Y-$M-$D $h:$m"
+}
+
+################################################################################
+#
+# Join elements of an array:
+#
+# https://stackoverflow.com/questions/1527049/join-elements-of-an-array
+# accepted nice one! https://stackoverflow.com/a/17841619/7022062
+#
+# Examples:
+#   join_by , a "b c" d #a,b c,d
+#   join_by / var local tmp #var/local/tmp
+#   join_by , "${FOO[@]}" #a,b,c
+#
+function join_by {
+    local IFS="$1"
+    shift
+    join_by_result="$*"
+}
+
+function check_if_parent_is_alive_or_exit() {
+    # check if parent process is still running (otherwise kill oneself)
+    SNIFFING_PARENT_NAME="`ps -p $$ -o comm=`"
+    if [[ "${SNIFFING_PARENT_NAME}" =~ "bash" ]] || [[ "${SNIFFING_PARENT_NAME}" =~ "${SCRIPT_NAME_TRUNC15}" ]]; then
+	: # echo "parent is alive"
+    else
+	#echo "parent is dead"
+	exit 0
+    fi
+}
+
+# some defaults (not need to change, so kinda hidden deep down here:)
+NUMBER_OF_PINGS=1
+PING_TIMEOUT_S=1
+
+# try to get OS name (works on OS-X and Linux)
+OS_NAME=`uname -s`
+
+# sanity check - we have expected version name
+# "if" statement left in a "long form" here just as a template (to be reused later on for some suddle differences between OSes)
+if [ "${OS_NAME}" == "Linux" ]; then
+    : # we're running on linux
+elif [ "${OS_NAME}" == "Darwin" ]; then
+    : # we're running on OS-X
+else
+    echo "Error: can not identify OS, please fix. Details: 'uname -s' returned '${OS_NAME}', but I can only understand 'Linux' and 'Darwin'." >&2
+    exit 1
+fi
+
+# note: we're adding 'localhost' as a target, so we have reliable response each second from at least 1
+# target (so we can jump to firm assumption that other's failed if not deliveren during N-th iteration) (c) dimon.ca (patent pending;)
+#
+# note: "-i 10" added instead of "-i 1" so non-priveleted (non-root) users can use the tool just as well, otherwise following errors:
+#       fping: these options are too risky for mere mortals.
+#       fping: You need i >= 10, p >= 20, r < 20, and t >= 50
+#
+#PING_COMMAND="fping -D -l -e -i 1  -p ${SLEEP_BEFORE_NEXT_PING_MS} -b 12 ${TARGETS[*]} localhost"
+ PING_COMMAND="fping -D -l -e -i 10 -p ${SLEEP_BEFORE_NEXT_PING_MS} -b 12 ${TARGETS[*]} localhost"
+
+# get currrent date/time (works on Linux & OS-X)
+date=$(date +'%Y-%m-%d %H:%M:%S')
+read Y M D h m s <<< ${date//[-: ]/ }
+
+# the "basename" will be used for 2 type of output files:
+# 1) "per target" output with human-readable one-minute-per-line, no numbers note: we've many LOG_FILEs - 1 per each target)
+# 2) CSV for all targets comma separated RTT (ms) values, one line per second.
+#
+# Note: "per target" is formed by concatination of "basename" with particular target: ${LOG_FILE_BASENAME}_${TARGETS[i]}
+#
+LOG_FILES_BASENAME="${LOG_DIR}/${Y}${M}${D}_${h}_${m}_${s}"
+LOG_FILE_CSV="${LOG_FILES_BASENAME}.csv"				# this file is simple CSV with "epoch_s", "rtt_ms_target-1", "rtt_ms_target-2", etc.
+
+echo "csv log file: ${LOG_FILE_CSV}"
+
+# always start 1st line with timestamp (in all "per target" log files)
+for idx in "${!TARGETS[@]}"; do
+    iTARGET="${TARGETS[$idx]}"
+    echo -n "$Y-$M-$D $h:$m " >> "${LOG_FILES_BASENAME}_${iTARGET}"
+    # sometimes we might get "Permission denied" here due to user run ping-xray 1st as root
+    # and then as other user with less priveleges, so let's check:
+    RES=$?
+    if [ $RES -ne 0 ]; then
+	echo "Error: failed write to file '${LOG_FILES_BASENAME}_${iTARGET}', check permissions. Will exit now..." >&2
+	exit 1
+    fi
+done
+
+# write comma-separated headers to CSV file
+join_by , "${TARGETS[@]}"
+echo "epoch_s,${join_by_result}" > ${LOG_FILE_CSV}
+
+# check how many lines available in the current terminal
+LINES=`tput lines`
+
+if [ "${LINES}" == "" ]; then
+    LINES=60
+else
+    LINES=$(( $LINES - 4 ))  # extract 4 lines for headers and borders
+fi
+
+###############################################################################
+#
+# MAIN PINGER LOOP
+#
+# start ping command and process it's output line-by-line
+# http://stackoverflow.com/questions/4165135/how-to-use-while-read-bash-to-read-the-last-line-in-a-file-if-theres-no-new
+#
+function main_pinger_loop() {
+declare -a OUTPUT_PER_TARGET_SYM
+declare -a OUTPUT_PER_TARGET_RTT
+
+epoch_s=`date +%s`
+last_minute_start_epoch_s=$(( epoch_s / 60 * 60 ))
+
+previous_iteration_count=0  # "previous_iteration_count" comes from fping output (see int value in square brackets in example output below)
+while IFS='' read -r line || [[ -n "${line}" ]]; do
+    # Example output of fping, which is fed to this "while" loop:
+    # LINE: [1497324214.795189] 192.168.3.1  : [0], 40 bytes, 2.06 ms (2.06 avg, 0% loss)
+    # LINE: [1497324214.800669] 24.212.218.1 : [0], 40 bytes, 5.96 ms (5.96 avg, 0% loss)
+    # LINE: [1497324214.807130] google.com   : [0], 40 bytes, 11.3 ms (11.3 avg, 0% loss)
+    #echo "                                                               LINE: ${line}"
+
+    check_if_parent_is_alive_or_exit
+    # bash does support regexp: https://stackoverflow.com/a/44490624/7022062
+    # parse line and extract values
+    if [[ $line =~ \[([0-9]+)(\.[0-9]+\] +)([^ ]+)\ +:\ \[([0-9]+)\].*bytes,\ ([^ ]+)\ ms\ \(([^ ]+)\ avg ]]; then
+	epoch_s="${BASH_REMATCH[1]}"
+	target="${BASH_REMATCH[3]}"
+	per_target_log="${LOG_FILES_BASENAME}_${TARGETS[i]}"
+	iteration_count="${BASH_REMATCH[4]}"
+	rtt_ms="${BASH_REMATCH[5]}"
+	rtt_ms_rounded="`printf %.0f $rtt_ms`"
+	avg_ms="${BASH_REMATCH[6]}"
+	this_minute_start_epoch_s=$(( epoch_s / 60 * 60 ))
+        if (( $previous_iteration_count != $iteration_count )); then
+	    # New 1sec bunch of pings coming. They come every 1sec and have same $iteration_count value.
+	    # We might miss some replies from slow targets (which took >1sec to reply)). Next steps are:
+	    #    1) check if current minute is over
+	    #       then print new line beginning for GUI (only for human-readable aspect, not for csv logging. csv is simply "flat")
+	    #    2) report collected rtt_ms or 'F' for missing ones (for which we failed to get replies withing previous 1sec bucket)
+	    #       on both "GUI" and csv files
+	    #    3) reset "per-target" buckets before we start recording new bunch (new 1sec bucket with new incremented $iteration_count)
+	    #    4) store new (1st) value for the next bucket
+
+	    # 1) checking if current minute is over
+	    #     method-1: [by mod  $(( 1497370200 % 60 )) == 0 ] <-- this method is no good.. if we skipped this exact sec, we're screwed and will have to wait/hope till the next minute start
+	    #     method-2: compare "this minute start epoch sec" to the previously reported: this_minute_start_epoch_s=$(( epoch_s / 60 * 60 ))    <-- METHOD WORKS SO MUCH BETTER!!
+	    if (( $last_minute_start_epoch_s != $this_minute_start_epoch_s )); then
+		# yes, a new minute started!
+		last_minute_start_epoch_s=$this_minute_start_epoch_s
+		
+		# Function get_YYYYMMDDHHMM_by_epoch_s() sets result to: YYYYMMDDHHMM_by_epoch_s
+		get_YYYYMMDDHHMM_by_epoch_s $epoch_s
+		
+		# Print end of line and new prefix (date/time) to all target files
+		for idx in "${!TARGETS[@]}"; do
+		    iTARGET="${TARGETS[$idx]}"
+		    echo >> "${LOG_FILES_BASENAME}_${iTARGET}"
+		    echo -n "${YYYYMMDDHHMM_by_epoch_s} " >> "${LOG_FILES_BASENAME}_${iTARGET}"
+		done
+	    fi
+
+	    #    2) report collected rtt_ms or 'X' for missing ones (for which we failed to get replies withing previous 1sec bucket)
+	    #       on both "GUI" and csv files
+	    echo -n "${epoch_s}," >> ${LOG_FILE_CSV}
+	    for idx in "${!TARGETS[@]}"; do
+		iTARGET="${TARGETS[$idx]}"
+		iSYM="${OUTPUT_PER_TARGET_SYM[$idx]}"
+		iRTT_MS="${OUTPUT_PER_TARGET_RTT[$idx]}"
+		if [ "${iSYM}" == "" ]; then
+		    # blank value, means this target (F)ailed to reply within 1sec
+		    #
+		    # Terminal escape colours explained: https://askubuntu.com/questions/558280/changing-colour-of-text-and-background-of-terminal
+		    #     printf '\e[38;5;196m Foreground color: red\n'
+		    #     printf '\e[48;5;0m Background color: black\n'
+		    #
+		    # Or by RGB components:
+		    #     printf '\e[38;2;255;0;0m Foreground color: red\n'
+		    #     printf '\e[48;2;0;0;0m Background color: black\n'
+		
+		    #iSYM="\e[38;5;226m\e[48;5;196mG\e[0m"	# why this doesn't work?
+		    # iSYM="\033(0x\033(B" 			# while this one works fine.
+		
+		    iSYM="\033[38;5;226m\033[48;5;196mX\033[0m"  # "X" looks better for X-Ray tool ;)
+		    #iSYM="\033[38;5;226m\033[48;5;196mF\033[0m"  # "F"
+		fi
+		echo -n "${iSYM}" >> "${LOG_FILES_BASENAME}_${iTARGET}"
+		echo -n "${iRTT_MS}" >> ${LOG_FILE_CSV}
+		if [[ $idx != $TARGETS_LAST_INDEX ]]; then
+		    echo -n ',' >> ${LOG_FILE_CSV}
+		fi
+	    done
+	    # we wrote all csv values, add EOL to CSV file
+	    echo >> ${LOG_FILE_CSV}
+
+	    #    3) reset "per-target" buckets before we start recording new bunch (new 1sec bucket with new incremented $iteration_count)
+	    unset OUTPUT_PER_TARGET_SYM
+	    previous_iteration_count="${iteration_count}"
+	fi
+
+	# identify current line target's index 
+	# (we get intermixed results from fping, sometimes some targets can be missing if ping make it in 1s)
+	get_target_index "${target}"
+	target_idx=$?
+	
+	# get symbol, which will characterize the ping timing (according to get_sym_for_rtt_ms_rounded() "table")
+	# function sets $sym_for_rtt_ms_rounded
+	get_sym_for_rtt_ms_rounded
+	
+	# store result
+	OUTPUT_PER_TARGET_SYM[$target_idx]=$sym_for_rtt_ms_rounded
+	OUTPUT_PER_TARGET_RTT[$target_idx]=$rtt_ms
+
+    fi
+
+done < <( ${PING_COMMAND} )
+}
+#
+# MAIN PINGER LOOP (end)
+#
+###############################################################################
+
+# start "main pinger loop" in the background
+main_pinger_loop&
+
+TAIL_N_LINES=$(( LINES - 3 - TARGETS_LENGTH ))     # 3 blank lines by 'tail' plus one line 'header/filename' for each target
+TAIL_N_LINES=$(( TAIL_N_LINES / TARGETS_LENGTH ))  # we don't care about fractions of line, just use available integer
+
+# we need "echo -e" to properly draw escape sequences (colors)
+while true; do
+clear
+while IFS=: read -r line || [[ -n "$line" ]]; do
+    echo -e $line;
+    echo -e -n '\033[0m'  # reset colors, so next line doesn't start with random color :)
+done < <(tail -n ${TAIL_N_LINES} ${LOG_FILES_BASENAME}*)
+
+sleep 1;
+done
+
+exit 0
