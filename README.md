@@ -1,8 +1,44 @@
+
+<div align="center">
+<h2>First couple screenshots. A picture is worth a thousand words!-) Click images to enlarge:</h2>
+
+<a href="https://dimon.ca/wp-content/uploads/ping-xray/2_hours_17minutes_6_targets_1s_resolution.quiet_office_day.png" target="_img1"><img class="alignnone size-medium wp-image-535" src="https://dimon.ca/wp-content/uploads/ping-xray/2_hours_17minutes_6_targets_1s_resolution.quiet_office_day-768x606.png" alt="" width="768" height="606" /></a>
+<br><i> Quiet day in the office, left to right we ping: wifi router, gateway, Google DNS (anycast), some Amazon EC2 box, two Interactive Broker's API Servers. One terminal window shows 2 hours 17 minutes of 1 second resolution pings lined up for 6 targets!</i>
+
+<hr width="70%">
+
+<a href="https://dimon.ca/wp-content/uploads/ping-xray/10sec-almost-outage-due-to-ISP.png" target="_img2"><img class="alignnone size-medium wp-image-536" src="https://dimon.ca/wp-content/uploads/ping-xray/10sec-almost-outage-due-to-ISP-768x327.png" alt="" width="768" height="327" /></a>
+<br><i>Note 10 seconds "almost outage" started on ISP Gateway caused delays and packet loss for other targets.</i>
+
+<hr width="70%">
+
+<a href="https://dimon.ca/wp-content/uploads/ping-xray/interesting-3-times-per-minute-delays-starts-at-ISP-layer.png" target="_img3"><img class="alignnone size-medium wp-image-537" src="https://dimon.ca/wp-content/uploads/ping-xray/interesting-3-times-per-minute-delays-starts-at-ISP-layer-768x327.png" alt="" width="768" height="327" /></a>
+<br><i>Note interesting artifacts: starting around 20:16 for 10 minutes we see distinct ICMP delays 3 times per minute (phasing slowly "to the right" since those periodic delays aren't exact 60sec). What the blip are those?! How else you'd be able to see UFO flying around your network without this cool ping-xray tool??!  ;)</i>
+
+<hr width="70%">
+
+<a href="https://dimon.ca/wp-content/uploads/ping-xray/ping-xray-while-downloading-couple-movies.png" target="_img4"><img class="alignnone size-medium wp-image-538" src="https://dimon.ca/wp-content/uploads/ping-xray/ping-xray-while-downloading-couple-movies-768x357.png" alt="" width="768" height="357" /></a>
+<br><i>Artificially created high bandwidth traffic (by downloading couple movies same time in parallel with ping-xray running)</i>
+
+<hr width="70%">
+
+<a href="https://dimon.ca/wp-content/uploads/ping-xray/ping-xray.colormap.0-999ms.png" target="_img5"><img src="https://dimon.ca/wp-content/uploads/ping-xray/ping-xray.colormap.0-999ms-768x515.png" alt="" width="768" height="515" /></a>
+<br><i>ping-xray uses custom made / unique colormap to make output more human-readable. Just by colour you might roughly see <a href="https://en.wikipedia.org/wiki/Round-trip_delay_time" target="_blank">the Round-trip delay time</a>!</i>
+
+<hr width="70%">
+
+<a href="https://dimon.ca/wp-content/uploads/ping-xray/ping-xray.colormap.hex-values.png" target="_img6"><img src="https://dimon.ca/wp-content/uploads/ping-xray/ping-xray.colormap.hex-values-164x300.png" alt="" width="164" height="300" /></a>
+<br><i>Hex codes of RGB combinations for all of the ping-xray colormap values, you can find <a href="https://dimon.ca/wp-content/uploads/ping-xray/colormap.html" target="_blank">TXT version of the colormap here</a></i>
+
+<hr width="70%">
+
+</div>
+
 <pre>
 
- Pinger-XRay is here!-)
+ <h2>Pinger-XRay is here!-)</h2>
 
- Short description:
+ <b>Short description:</b>
 
        Purpose: pingxer-xray is a monitoring tool, which facilitates sending ICMP "ping packets"
                 to multiple targets (by using fping, which is the only dependency) and represent
@@ -14,15 +50,17 @@
                   - Ubuntu: sudo apt install fping
                   - Mac OS-X: brew insall fping  (if you use Homebrew package management - https://brew.sh/ )
  Supported OSs: Linux & OS-X
-   For updates: https://dimon.ca/ping-xray
-                https://github.com/shevkoplyas/ping-xray
-  For feedback: shevkoplyas at gmail dot com. Please report bugs/improvements/etc.
+      Download: <a href="https://github.com/shevkoplyas/ping-xray" target="pingergit">https://github.com/shevkoplyas/ping-xray</a>
+                <a href="https://dimon.ca/ping-xray" target="dimonca">https://dimon.ca/ping-xray</a>
+
+  For feedback: <a href="https://github.com/shevkoplyas/ping-xray/issues" target="gitissues">https://github.com/shevkoplyas/ping-xray/issues</a>
+               or emai1 me: shevkoplyas at gmail dot com. Please report bugs/improvements/etc.
 
  (c) dimon.ca
 
  ---
 
- Description:
+ <b>Description:</b>
 
  Often we have questions about quality of our internet, especially when trading.
  When something seems to be not working right it is really hard to pinpoint which
@@ -120,7 +158,7 @@
  pseudo-graphics (lines, colours etc.)  If you resize your terminal window, you'll
  need to re-start the ping-xray (it does not catch the window size change dynamically yet).
 
- See screenshots: https://dimon.ca/ping-xray/
+ See screenshots: <a href="https://dimon.ca/ping-xray/">https://dimon.ca/ping-xray/</a>
 
  When, for example, you see the degradation or "X" happening in all targets, including your router,
  then obviously there's no need to call to ISP or broker's support line and you need to find out
@@ -138,5 +176,6 @@
 
  Cheers,
  Dmitry Shevkoplyas
+ <a href="https://dimon.ca/">https://dimon.ca/</a>
 
 </pre>
