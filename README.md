@@ -120,7 +120,7 @@
  pseudo-graphics (lines, colours etc.)  If you resize your terminal window, you'll
  need to re-start the ping-xray (it does not catch the window size change dynamically yet).
 
- See screenshots: https://dimon.ca/ping-xray/screenshots
+ See screenshots: https://dimon.ca/ping-xray/
 
  When, for example, you see the degradation or "X" happening in all targets, including your router,
  then obviously there's no need to call to ISP or broker's support line and you need to find out
