@@ -4,10 +4,15 @@
 #
 # Short description
 #
-# pingxer-xray sends small (12 bytes payload) ICMP (type=8 ECHO) packets to the multiple targets.
-#    Dependency: require fping
-#                  Ubuntu: sudo apt install fping
-#                Mac OS-X: brew insall fping  (if you use Homebrew package management - https://brew.sh/ )
+#       Purpose: pingxer-xray is a monitoring tool, which facilitates sending ICMP "ping packets"
+#                to multiple targets (by using fping, which is the only dependency) and represent
+#                the results on one screen with couple hours of history to 5-8 targets with 1 sec
+#                resolution! Note: pinger-xray sends small (12 bytes payload) ICMP (type=8 ECHO)
+#                packets once a second, so it does not stress your network or servers.
+#    Dependency: fping
+#                To install fping:
+#                  - Ubuntu: sudo apt install fping
+#                  - Mac OS-X: brew insall fping  (if you use Homebrew package management - https://brew.sh/ )
 # Supported OSs: Linux & OS-X
 #   For updates: https://dimon.ca/ping-xray
 #                https://github.com/shevkoplyas/ping-xray
