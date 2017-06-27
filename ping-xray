@@ -176,6 +176,14 @@ LOG_DIR="${BASE_DIR}/ping-xray-output"
 # but on OS-X the parent process name is "/bin/bash".
 SCRIPT_NAME=`basename "$0"`
 
+# ps command truncates the script name down to 15 characters. There are forms of ps command
+# which would allow to have process name not truncates, but we need one that reliably works
+# on both Linux and OS-X, so it might be easier to allow "ps" command to shorten the script
+# name and we'll do the same for proper regexp match (from child process when it checks if
+# parent is still alive). Todo: find good "ps" command that works on both and get rid of this hack.
+#
+SCRIPT_NAME_TRUNC15="${SCRIPT_NAME:0:15}"
+
 # make sure $LOG_DIR exists
 if [ ! -d ${LOG_DIR} ]; then
     echo "creating log folder: ${LOG_DIR}"
@@ -469,7 +477,7 @@ function check_if_parent_is_alive_or_exit() {
     # check if parent process is still running (otherwise kill oneself)
     SNIFFING_PARENT_NAME="`ps -p $$ -o comm=`"
     # note: in OS-X parent is "/bin/bash", while in linux parent is the script name
-    if [[ "${SNIFFING_PARENT_NAME}" =~ "bash" ]] || [[ "${SNIFFING_PARENT_NAME}" =~ "${SCRIPT_NAME}" ]]; then
+    if [[ "${SNIFFING_PARENT_NAME}" =~ "bash" ]] || [[ "${SNIFFING_PARENT_NAME}" =~ "${SCRIPT_NAME_TRUNC15}" ]]; then
 	: # echo "parent is alive"
     else
 	#echo "parent is dead"
