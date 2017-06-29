@@ -157,7 +157,7 @@ BASE_DIR=`pwd`
 
 # This script will create following subdirectory for all it's logs and CSV files.
 # If you prefer other location, specify it here:
-LOG_DIR="${$HOME}/.ping-xray"
+LOG_DIR="${HOME}/.ping-xray"
 
 
 
