@@ -34,7 +34,7 @@
 
 </div>
 
-<pre>
+<pre style="font-size: 11px;" class="prettyprint prettyprinted" >
 
  <h2>Pinger-XRay is here!-)</h2>
 
