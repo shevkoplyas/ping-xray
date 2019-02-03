@@ -516,7 +516,7 @@ fi
 #       fping: You need i >= 10, p >= 20, r < 20, and t >= 50
 #
 #PING_COMMAND="fping -D -l -e -i 1  -p ${SLEEP_BEFORE_NEXT_PING_MS} -b 12 ${TARGETS[*]} localhost"
- PING_COMMAND="fping -D -l -e -i 10 -p ${SLEEP_BEFORE_NEXT_PING_MS} -b 12 ${TARGETS[*]} localhost"
+ PING_COMMAND="fping -D -l -e -i 10 -p ${SLEEP_BEFORE_NEXT_PING_MS} -b 12 ${TARGETS[*]} localhost 2>/dev/null"
 
 
 
