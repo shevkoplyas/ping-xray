@@ -159,22 +159,6 @@ BASE_DIR=`pwd`
 # If you prefer other location, specify it here:
 LOG_DIR="${HOME}/.ping-xray"
 
-
-
-
-
-
-
-
-# ----------------------- do not edit below this line --------------------------
-
-
-
-
-
-
-
-
 # script will need to know it's name, since child processes (each target pinged in separate
 # background process) will need to check if parent process is still alive (otherwise child
 # terminates itself). On linux the parend process would have same name as this script name,
@@ -188,6 +172,13 @@ SCRIPT_NAME=`basename "$0"`
 # parent is still alive). Todo: find good "ps" command that works on both and get rid of this hack.
 #
 SCRIPT_NAME_TRUNC15="${SCRIPT_NAME:0:15}"
+
+# Check dependency: Is fping installed?
+which fping > /dev/null
+if [ $? -ne 0 ]; then
+    echo "error: dependency 'fping' is not installed. Please install 'fping' and try again." >&2
+    exit 1
+fi
 
 # make sure $LOG_DIR exists
 if [ ! -d ${LOG_DIR} ]; then
