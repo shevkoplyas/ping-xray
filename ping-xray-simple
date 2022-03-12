@@ -521,7 +521,7 @@ fi
 date=$(date +'%Y-%m-%d %H:%M:%S')
 read Y M D h m s <<< ${date//[-: ]/ }
 
-# the "basename" will be used for 2 type of output files:
+# The "basename" will be used for 2 type of output files:
 # 1) "per target" output with human-readable one-minute-per-line, no numbers note: we've many LOG_FILEs - 1 per each target)
 # 2) CSV for all targets comma separated RTT (ms) values, one line per second.
 #
@@ -545,7 +545,7 @@ for idx in "${!TARGETS[@]}"; do
     fi
 done
 
-# write comma-separated headers to CSV file
+# Write comma-separated headers to CSV file
 join_by , "${TARGETS[@]}"
 echo "epoch_s,${join_by_result}" > ${LOG_FILE_CSV}
 
@@ -650,24 +650,24 @@ while IFS='' read -r line || [[ -n "${line}" ]]; do
                     echo -n ',' >> ${LOG_FILE_CSV}
                 fi
             done
-            # we wrote all csv values, add EOL to CSV file
+            # We wrote all csv values, add EOL to CSV file
             echo >> ${LOG_FILE_CSV}
 
-            #    3) reset "per-target" buckets before we start recording new bunch (new 1sec bucket with new incremented $iteration_count)
+            #    3) Reset "per-target" buckets before we start recording new bunch (new 1sec bucket with new incremented $iteration_count)
             unset OUTPUT_PER_TARGET_SYM
             previous_iteration_count="${iteration_count}"
         fi
 
-        # identify current line target's index 
+        # Identify current line target's index 
         # (we get intermixed results from fping, sometimes some targets can be missing if ping make it in 1s)
         get_target_index "${target}"
         target_idx=$?
         
-        # get symbol, which will characterize the ping timing (according to get_sym_for_rtt_ms_rounded() "table")
+        # Get symbol, which will characterize the ping timing (according to get_sym_for_rtt_ms_rounded() "table")
         # function sets $sym_for_rtt_ms_rounded
         get_sym_for_rtt_ms_rounded
         
-        # store result
+        # Store result
         OUTPUT_PER_TARGET_SYM[$target_idx]=$sym_for_rtt_ms_rounded
         OUTPUT_PER_TARGET_RTT[$target_idx]=$rtt_ms
 
@@ -680,21 +680,21 @@ done < <( ${PING_COMMAND} )
 #
 ###############################################################################
 
-# start "main pinger loop" in the background
+# Start the "main pinger loop" in the background
 main_pinger_loop&
 
 TAIL_N_LINES=$(( LINES - 3 - TARGETS_LENGTH ))     # 3 blank lines by 'tail' plus one line 'header/filename' for each target
 TAIL_N_LINES=$(( TAIL_N_LINES / TARGETS_LENGTH ))  # we don't care about fractions of line, just use available integer
 
-# we need "echo -e" to properly draw escape sequences (colors)
+# We need "echo -e" to properly draw escape sequences (colors)
 while true; do
-clear
-while IFS=: read -r line || [[ -n "$line" ]]; do
-    echo -e $line;
-    echo -e -n '\033[0m'  # reset colors, so next line doesn't start with random color :)
-done < <(tail -n ${TAIL_N_LINES} ${LOG_FILES_BASENAME}*)
+    clear
+    while IFS=: read -r line || [[ -n "$line" ]]; do
+        echo -e $line;
+        echo -e -n '\033[0m'  # reset colors, so next line doesn't start with random color :)
+    done < <(tail -n ${TAIL_N_LINES} ${LOG_FILES_BASENAME}*)
 
-sleep 1;
+    sleep 1;
 done
 
 exit 0

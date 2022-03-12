@@ -40,17 +40,17 @@
 # or some other "mysterious" BS.
 #
 # And here comes the ping-xray, which allows you to:
-#	- ping multiple targets simultaneously
-#	- visually see the output with 1 second resolution
-#	  (one terminlal can show 2-3 hours history for lots of target hosts)!
-#	- create log files with unique filename, so you have it for the record.
-#	  (log file would have timestamp in it's name, so it is safe to restart the tool
-#	   without loosing any of the previus data)
-#	- create one CSV file with all targets exact round-trip delay time (exact milliseconds)
+#        - ping multiple targets simultaneously
+#        - visually see the output with 1 second resolution
+#          (one terminlal can show 2-3 hours history for lots of target hosts)!
+#        - create log files with unique filename, so you have it for the record.
+#          (log file would have timestamp in it's name, so it is safe to restart the tool
+#           without loosing any of the previus data)
+#        - create one CSV file with all targets exact round-trip delay time (exact milliseconds)
 #
 # ping-xray comes in two flaivors:
-#	- ping-xray-simple
-#	- ping-xray (fancy ascii "gui")
+#        - ping-xray-simple
+#        - ping-xray (fancy ascii "gui")
 #
 # First tool "ping-xray-simple" is just couple hundred lines of code script, which takes
 # arbitrary number of targets to poing (IP or hostnames with optional description, see example below),
@@ -130,9 +130,9 @@
 # what causing those problems on your end. ;)
 #
 # Usually I'd recommend to run the pinger for the whole trading day and ping at least 3 targets:
-#	1) your router (on your LAN)
-#	2) your ISP gateway (1st IP outside your lan on the ISP end)
-#	3) some more distant public targets, like google.com and your broker's server.
+#        1) your router (on your LAN)
+#        2) your ISP gateway (1st IP outside your lan on the ISP end)
+#        3) some more distant public targets, like google.com and your broker's server.
 #
 # If your broker (or other target server) does not allow ICMP, then you can use "TCP SYN Ping"
 # with much less aggressive rate of you ping requests (ping-xray not yet supports TCP SYN Ping).
@@ -204,8 +204,8 @@ fi
 TARGETS=( "$@" )
 TARGETS_LENGTH=${#TARGETS[@]}
 TARGETS_LAST_INDEX=$(( TARGETS_LENGTH - 1 ))
-# echo "debug: TARGETS array length: ${TARGETS_LENGTH}"
-# echo "debug: TARGETS_LAST_INDEX: ${TARGETS_LAST_INDEX}"
+# echo "debug: TARGETS array length: ${TARGETS_LENGTH}" >> ~/.debug
+# echo "debug: TARGETS_LAST_INDEX: ${TARGETS_LAST_INDEX}" >> ~/.debug
 
 # Declare an array of target's labels. Those are optional and can be given by user
 # in the following form: "1.2.3.4_Wi-fi_Router" (Optional label stars with "_", no spaces allowed)
@@ -215,9 +215,9 @@ declare -a TARGETS_LABELS
 shopt -s extglob  # https://stackoverflow.com/a/41422027/7022062 - we'll replace all "_" with " " inside the labels
 for idx in "${!TARGETS[@]}"; do
     if [[ ${TARGETS[$idx]} =~ ([^_]+)_(.*) ]]; then
-	TARGETS[$idx]="${BASH_REMATCH[1]}"		# rewrite i-th target w/o label
-	iLABEL="${BASH_REMATCH[2]}"
-	TARGETS_LABELS[$idx]="${iLABEL//+([_])/ }"	# store label
+        TARGETS[$idx]="${BASH_REMATCH[1]}"                # rewrite i-th target w/o label
+        iLABEL="${BASH_REMATCH[2]}"
+        TARGETS_LABELS[$idx]="${iLABEL//+([_])/ }"        # store label
     fi
 done
 
@@ -238,9 +238,9 @@ function get_target_index() {
     TARGET=$1
     #for (( i=0; i<${TARGETS_LENGTH}; i++ )); do
     for i in "${!TARGETS[@]}"; do
-	if [ "${TARGET}" == "${TARGETS[$i]}" ]; then
-	    return $i
-	fi
+        if [ "${TARGET}" == "${TARGETS[$i]}" ]; then
+            return $i
+        fi
     done
     return 255
 }
@@ -362,63 +362,63 @@ COLORMAP[${#COLORMAP[*]}]="\033[38;2;251;29;0;m"
 COLORMAP[${#COLORMAP[*]}]="\033[38;2;250;25;0;m"
 
 function get_sym_for_rtt_ms_rounded() {
-	if (( $rtt_ms_rounded < 100 )); then
-	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}."  # '%?' is here to drop last digit, so instead of 0..999 we have 0..99
-	    return
-	elif (( $rtt_ms_rounded < 200 )); then
-	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}1"
-	    return
-	elif (( $rtt_ms_rounded < 300 )); then
-	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}2"
-	    return
-	elif (( $rtt_ms_rounded < 400 )); then
-	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}3"
-	    return
-	elif (( $rtt_ms_rounded < 500 )); then
-	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}4"
-	    return
-	elif (( $rtt_ms_rounded < 600 )); then
-	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}5"
-	    return
-	elif (( $rtt_ms_rounded < 700 )); then
-	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}6"
-	    return
-	elif (( $rtt_ms_rounded < 800 )); then
-	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}7"
-	    return
-	elif (( $rtt_ms_rounded < 900 )); then
-	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}8"
-	    return
-	elif (( $rtt_ms_rounded < 1000 )); then
-	    sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}9"
-	    return
-	else
-	    sym_for_rtt_ms_rounded='SHOULDNEVERHAPPEN_PLEASE_FIX'  # the max expected value of RTT is 999, so this should never happen
-	fi
+    if (( $rtt_ms_rounded < 100 )); then
+        sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}."  # '%?' is here to drop last digit, so instead of 0..999 we have 0..99
+        return
+    elif (( $rtt_ms_rounded < 200 )); then
+        sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}1"
+        return
+    elif (( $rtt_ms_rounded < 300 )); then
+        sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}2"
+        return
+    elif (( $rtt_ms_rounded < 400 )); then
+        sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}3"
+        return
+    elif (( $rtt_ms_rounded < 500 )); then
+        sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}4"
+        return
+    elif (( $rtt_ms_rounded < 600 )); then
+        sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}5"
+        return
+    elif (( $rtt_ms_rounded < 700 )); then
+        sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}6"
+        return
+    elif (( $rtt_ms_rounded < 800 )); then
+        sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}7"
+        return
+    elif (( $rtt_ms_rounded < 900 )); then
+        sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}8"
+        return
+    elif (( $rtt_ms_rounded < 1000 )); then
+        sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}9"
+        return
+    else
+        sym_for_rtt_ms_rounded='SHOULDNEVERHAPPEN_PLEASE_FIX'  # the max expected value of RTT is 999, so this should never happen
+    fi
 }
 
 # Tried some alternatives.. may be some "ascii heat map" can be used here
 # to make output more human-readable. Colours would be a good idea, but not for v.0.0.1 ;)
 #
 #function get_sym_for_rtt_ms_rounded_ALTERNATIVE3() {
-#	if (( $rtt_ms_rounded < 200 )); then
-#	    sym_for_rtt_ms_rounded=' '
-#	    return
-#	elif (( $rtt_ms_rounded >= 200 )) && (( $rtt_ms_rounded < 400 )); then
-#	    sym_for_rtt_ms_rounded='.'
-#	    return
-#	elif (( $rtt_ms_rounded >= 400 )) && (( $rtt_ms_rounded < 600 )); then
-#	    sym_for_rtt_ms_rounded='_'
-#	    return
-#	elif (( $rtt_ms_rounded >= 600 )) && (( $rtt_ms_rounded < 800 )); then
-#	    sym_for_rtt_ms_rounded='='
-#	    return
-#	elif (( $rtt_ms_rounded >= 800 )); then
-#	    sym_for_rtt_ms_rounded='z'
-#	    return
-#	else
-#	    sym_for_rtt_ms_rounded='SHOULDNEVERHAPPEN'
-#	fi
+#        if (( $rtt_ms_rounded < 200 )); then
+#            sym_for_rtt_ms_rounded=' '
+#            return
+#        elif (( $rtt_ms_rounded >= 200 )) && (( $rtt_ms_rounded < 400 )); then
+#            sym_for_rtt_ms_rounded='.'
+#            return
+#        elif (( $rtt_ms_rounded >= 400 )) && (( $rtt_ms_rounded < 600 )); then
+#            sym_for_rtt_ms_rounded='_'
+#            return
+#        elif (( $rtt_ms_rounded >= 600 )) && (( $rtt_ms_rounded < 800 )); then
+#            sym_for_rtt_ms_rounded='='
+#            return
+#        elif (( $rtt_ms_rounded >= 800 )); then
+#            sym_for_rtt_ms_rounded='z'
+#            return
+#        else
+#            sym_for_rtt_ms_rounded='SHOULDNEVERHAPPEN'
+#        fi
 #}
 
 ################################################################################
@@ -473,14 +473,14 @@ function join_by {
 }
 
 function check_if_parent_is_alive_or_exit() {
-    # check if parent process is still running (otherwise kill oneself)
+    # Check if parent process is still running (otherwise kill oneself)
     SNIFFING_PARENT_NAME="`ps -p $$ -o comm=`"
-    # note: in OS-X parent is "/bin/bash", while in linux parent is the script name
+    # Note: in OS-X parent is "/bin/bash", while in linux parent is the script name
     if [[ "${SNIFFING_PARENT_NAME}" =~ "bash" ]] || [[ "${SNIFFING_PARENT_NAME}" =~ "${SCRIPT_NAME_TRUNC15}" ]]; then
-	: # echo "parent is alive"
+        : # echo "parent is alive"
     else
-	#echo "parent is dead"
-	exit 0
+        #echo "parent is dead"
+        exit 0
     fi
 }
 
@@ -525,7 +525,7 @@ read Y M D h m s <<< ${date//[-: ]/ }
 # Note: "per target" is formed by concatination of "basename" with particular target: ${LOG_FILE_BASENAME}_${TARGETS[i]}
 #
 LOG_FILES_BASENAME="${LOG_DIR}/${Y}${M}${D}_${h}_${m}_${s}"
-LOG_FILE_CSV="${LOG_FILES_BASENAME}.csv"				# this file is simple CSV with "epoch_s", "rtt_ms_target-1", "rtt_ms_target-2", etc.
+LOG_FILE_CSV="${LOG_FILES_BASENAME}.csv"                                # this file is simple CSV with "epoch_s", "rtt_ms_target-1", "rtt_ms_target-2", etc.
 
 echo "csv log file: ${LOG_FILE_CSV}"
 
@@ -537,8 +537,8 @@ for idx in "${!TARGETS[@]}"; do
     # and then as other user with less priveleges, so let's check:
     RES=$?
     if [ $RES -ne 0 ]; then
-	echo "Error: failed write to file '${LOG_FILES_BASENAME}_${iTARGET}', check permissions. Will exit now..." >&2
-	exit 1
+        echo "Error: failed write to file '${LOG_FILES_BASENAME}_${iTARGET}', check permissions. Will exit now..." >&2
+        exit 1
     fi
 done
 
@@ -551,8 +551,6 @@ LINES=`tput lines`
 
 if [ "${LINES}" == "" ]; then
     LINES=60
-else
-    LINES=$(( $LINES - 4 ))  # extract 4 lines for headers and borders
 fi
 
 ###############################################################################
@@ -582,97 +580,97 @@ while IFS='' read -r line || [[ -n "${line}" ]]; do
     # bash does support regexp: https://stackoverflow.com/a/44490624/7022062
     # parse line and extract values
     if [[ $line =~ \[([0-9]+)(\.[0-9]+\] +)([^ ]+)\ +:\ \[([0-9]+)\].*bytes,\ ([^ ]+)\ ms\ \(([^ ]+)\ avg ]]; then
-	epoch_s="${BASH_REMATCH[1]}"
-	target="${BASH_REMATCH[3]}"
-	per_target_log="${LOG_FILES_BASENAME}_${TARGETS[i]}"
-	iteration_count="${BASH_REMATCH[4]}"
-	rtt_ms="${BASH_REMATCH[5]}"
-	rtt_ms_rounded="`printf %.0f $rtt_ms`"
-	avg_ms="${BASH_REMATCH[6]}"
-	this_minute_start_epoch_s=$(( epoch_s / 60 * 60 ))
-	
+        epoch_s="${BASH_REMATCH[1]}"
+        target="${BASH_REMATCH[3]}"
+        per_target_log="${LOG_FILES_BASENAME}_${TARGETS[i]}"
+        iteration_count="${BASH_REMATCH[4]}"
+        rtt_ms="${BASH_REMATCH[5]}"
+        rtt_ms_rounded="`printf %.0f $rtt_ms`"
+        avg_ms="${BASH_REMATCH[6]}"
+        this_minute_start_epoch_s=$(( epoch_s / 60 * 60 ))
+        
         if (( $previous_iteration_count != $iteration_count )); then
-	    # New 1sec bunch of pings coming. They come every 1sec and have same $iteration_count value.
-	    # We might miss some replies from slow targets (which took >1sec to reply)). Next steps are:
-	    #    1) check if current minute is over
-	    #       then print new line beginning for GUI (only for human-readable aspect, not for csv logging. csv is simply "flat")
-	    #    2) report collected rtt_ms or 'F' for missing ones (for which we failed to get replies withing previous 1sec bucket)
-	    #       on both "GUI" and csv files
-	    #    3) reset "per-target" buckets before we start recording new bunch (new 1sec bucket with new incremented $iteration_count)
-	    #    4) store new (1st) value for the next bucket
+            # New 1sec bunch of pings coming. They come every 1sec and have same $iteration_count value.
+            # We might miss some replies from slow targets (which took >1sec to reply)). Next steps are:
+            #    1) check if current minute is over
+            #       then print new line beginning for GUI (only for human-readable aspect, not for csv logging. csv is simply "flat")
+            #    2) report collected rtt_ms or 'F' for missing ones (for which we failed to get replies withing previous 1sec bucket)
+            #       on both "GUI" and csv files
+            #    3) reset "per-target" buckets before we start recording new bunch (new 1sec bucket with new incremented $iteration_count)
+            #    4) store new (1st) value for the next bucket
 
-	    # 1) checking if current minute is over
-	    #     method-1: [by mod  $(( 1497370200 % 60 )) == 0 ] <-- this method is no good.. if we skipped this exact sec, we're screwed and will have to wait/hope till the next minute start
-	    #     method-2: compare "this minute start epoch sec" to the previously reported: this_minute_start_epoch_s=$(( epoch_s / 60 * 60 ))    <-- METHOD WORKS SO MUCH BETTER!!
-	    if (( $last_minute_start_epoch_s != $this_minute_start_epoch_s )); then
-		# yes, a new minute started!
-		last_minute_start_epoch_s=$this_minute_start_epoch_s
-		
-		# Function get_YYYYMMDDHHMM_by_epoch_s() sets result to: YYYYMMDDHHMM_by_epoch_s
-		get_YYYYMMDDHHMM_by_epoch_s $epoch_s
-		
-		# Print end of line and new prefix (date/time) to all target files
-		for idx in "${!TARGETS[@]}"; do
-		    iTARGET="${TARGETS[$idx]}"
-		    echo >> "${LOG_FILES_BASENAME}_${iTARGET}"
-		    echo -n "${YYYYMMDDHHMM_by_epoch_s} " >> "${LOG_FILES_BASENAME}_${iTARGET}"
-		done
-	    fi
+            # 1) checking if current minute is over
+            #     method-1: [by mod  $(( 1497370200 % 60 )) == 0 ] <-- this method is no good.. if we skipped this exact sec, we're screwed and will have to wait/hope till the next minute start
+            #     method-2: compare "this minute start epoch sec" to the previously reported: this_minute_start_epoch_s=$(( epoch_s / 60 * 60 ))    <-- METHOD WORKS SO MUCH BETTER!!
+            if (( $last_minute_start_epoch_s != $this_minute_start_epoch_s )); then
+                # yes, a new minute started!
+                last_minute_start_epoch_s=$this_minute_start_epoch_s
+                
+                # Function get_YYYYMMDDHHMM_by_epoch_s() sets result to: YYYYMMDDHHMM_by_epoch_s
+                get_YYYYMMDDHHMM_by_epoch_s $epoch_s
+                
+                # Print end of line and new prefix (date/time) to all target files
+                for idx in "${!TARGETS[@]}"; do
+                    iTARGET="${TARGETS[$idx]}"
+                    echo >> "${LOG_FILES_BASENAME}_${iTARGET}"
+                    echo -n "${YYYYMMDDHHMM_by_epoch_s} " >> "${LOG_FILES_BASENAME}_${iTARGET}"
+                done
+            fi
 
-	    #    2) report collected rtt_ms or 'X' for missing ones (for which we failed to get replies withing previous 1sec bucket)
-	    #       on both "GUI" and csv files
-	    echo -n "${epoch_s}," >> ${LOG_FILE_CSV}
-	    for idx in "${!TARGETS[@]}"; do
-		iTARGET="${TARGETS[$idx]}"
-		iSYM="${OUTPUT_PER_TARGET_SYM[$idx]}"
-		iRTT_MS="${OUTPUT_PER_TARGET_RTT[$idx]}"
-		if [ "${iSYM}" == "" ]; then
-		    # blank value, means this target (F)ailed to reply within 1sec
-		    #
-		    # Terminal escape colours explained: https://askubuntu.com/questions/558280/changing-colour-of-text-and-background-of-terminal
-		    #     printf '\e[38;5;196m Foreground color: red\n'
-		    #     printf '\e[48;5;0m Background color: black\n'
-		    #
-		    # Or by RGB components:
-		    #     printf '\e[38;2;255;0;0m Foreground color: red\n'
-		    #     printf '\e[48;2;0;0;0m Background color: black\n'
-		
-		    #iSYM="\e[38;5;226m\e[48;5;196mG\e[0m"	# why this doesn't work?
-		    # iSYM="\033(0x\033(B" 			# while this one works fine.
-		
-		    iSYM="\033[38;5;226m\033[48;5;196mX\033[0m"  # "X" looks better for X-Ray tool ;)
-		    #iSYM="\033[38;5;226m\033[48;5;196mF\033[0m"  # "F"
-		fi
-		echo -n "${iSYM}" >> "${LOG_FILES_BASENAME}_${iTARGET}"
-		echo -n "${iRTT_MS}" >> ${LOG_FILE_CSV}
-		if [[ $idx != $TARGETS_LAST_INDEX ]]; then
-		    echo -n ',' >> ${LOG_FILE_CSV}
-		fi
-	    done
-	    # we wrote all csv values, add EOL to CSV file
-	    echo >> ${LOG_FILE_CSV}
+            #    2) report collected rtt_ms or 'X' for missing ones (for which we failed to get replies withing previous 1sec bucket)
+            #       on both "GUI" and csv files
+            echo -n "${epoch_s}," >> ${LOG_FILE_CSV}
+            for idx in "${!TARGETS[@]}"; do
+                iTARGET="${TARGETS[$idx]}"
+                iSYM="${OUTPUT_PER_TARGET_SYM[$idx]}"
+                iRTT_MS="${OUTPUT_PER_TARGET_RTT[$idx]}"
+                if [ "${iSYM}" == "" ]; then
+                    # blank value, means this target (F)ailed to reply within 1sec
+                    #
+                    # Terminal escape colours explained: https://askubuntu.com/questions/558280/changing-colour-of-text-and-background-of-terminal
+                    #     printf '\e[38;5;196m Foreground color: red\n'
+                    #     printf '\e[48;5;0m Background color: black\n'
+                    #
+                    # Or by RGB components:
+                    #     printf '\e[38;2;255;0;0m Foreground color: red\n'
+                    #     printf '\e[48;2;0;0;0m Background color: black\n'
+                
+                    #iSYM="\e[38;5;226m\e[48;5;196mG\e[0m"        # why this doesn't work?
+                    # iSYM="\033(0x\033(B"                         # while this one works fine.
+                
+                    iSYM="\033[38;5;226m\033[48;5;196mX\033[0m"  # "X" looks better for X-Ray tool ;)
+                    #iSYM="\033[38;5;226m\033[48;5;196mF\033[0m"  # "F"
+                fi
+                echo -n "${iSYM}" >> "${LOG_FILES_BASENAME}_${iTARGET}"
+                echo -n "${iRTT_MS}" >> ${LOG_FILE_CSV}
+                if [[ $idx != $TARGETS_LAST_INDEX ]]; then
+                    echo -n ',' >> ${LOG_FILE_CSV}
+                fi
+            done
+            # we wrote all csv values, add EOL to CSV file
+            echo >> ${LOG_FILE_CSV}
 
-	    #    3) reset "per-target" buckets before we start recording new bunch (new 1sec bucket with new incremented ${iteration_count} )
-	    unset OUTPUT_PER_TARGET_SYM
-	    previous_iteration_count="${iteration_count}"
-	fi
+            #    3) reset "per-target" buckets before we start recording new bunch (new 1sec bucket with new incremented ${iteration_count} )
+            unset OUTPUT_PER_TARGET_SYM
+            previous_iteration_count="${iteration_count}"
+        fi
 
-	# Identify current line target's index 
-	# (we get intermixed results from fping, sometimes some targets can be missing if ping make it in 1s)
-	get_target_index "${target}"
-	target_idx=$?
-	
-	# Get symbol, which will characterize the ping timing (according to get_sym_for_rtt_ms_rounded() "table")
-	# function sets $sym_for_rtt_ms_rounded
-	get_sym_for_rtt_ms_rounded
-	
-	# Store result: symbol and RTT (in milliseconds)
-	OUTPUT_PER_TARGET_SYM[$target_idx]=$sym_for_rtt_ms_rounded
-	OUTPUT_PER_TARGET_RTT[$target_idx]=$rtt_ms
+        # Identify current line target's index 
+        # (we get intermixed results from fping, sometimes some targets can be missing if ping make it in 1s)
+        get_target_index "${target}"
+        target_idx=$?
+        
+        # Get symbol, which will characterize the ping timing (according to get_sym_for_rtt_ms_rounded() "table")
+        # function sets $sym_for_rtt_ms_rounded
+        get_sym_for_rtt_ms_rounded
+        
+        # Store result: symbol and RTT (in milliseconds)
+        OUTPUT_PER_TARGET_SYM[$target_idx]=$sym_for_rtt_ms_rounded
+        OUTPUT_PER_TARGET_RTT[$target_idx]=$rtt_ms
 
-	#if [[ ! $line =~ localhost ]]; then
+        #if [[ ! $line =~ localhost ]]; then
     else
-	echo "no match"
+        echo "no match"
     fi
 
 done < <( ${PING_COMMAND} )
@@ -684,16 +682,6 @@ done < <( ${PING_COMMAND} )
 
 # start "main pinger loop" in the background
 main_pinger_loop&
-
-
-
-
-
-# =============================================================================
-# =============================================================================
-# =============================================================================
-# =============================================================================
-
 
 
 ################################################################
@@ -738,15 +726,15 @@ create_buffer(){
   fi
 }
 
-#Usefull variables
+# Usefull variables
 LASTCOLS=0
 BUFFER=`create_buffer`
 POSX=0
 POSY=0
 LASTWINPOS=0
 
-#call on SIGINT and SIGKILL
-#it removes buffer before to stop
+# Trap calls on SIGINT and SIGKILL
+# and remove buffer before exitting
 on_kill(){
     echo "Exiting"
     rm -rf $BUFFER
@@ -754,22 +742,19 @@ on_kill(){
 }
 trap on_kill SIGINT SIGTERM
 
-
-#initialize terminal
+# Initialize terminal
 term_init(){
     POSX=0
     POSY=0
     tput clear >> $BUFFER
 }
 
-
-#change line
+# Change line
 _nl(){
     POSY=$((POSY+1))
     tput cup $POSY $POSX >> $BUFFER
     #echo 
 }
-
 
 move_up(){
     set_position $POSX 0
@@ -780,13 +765,13 @@ col_right(){
     set_position $left $LASTWINPOS
 }
 
-#put display coordinates
+# Put display coordinates
 set_position(){
     POSX=$1
     POSY=$2
 }
 
-#initialize chars to use
+# Initialize chars to use
 _TL="\033(0l\033(B"
 _TR="\033(0k\033(B"
 _BL="\033(0m\033(B"
@@ -810,7 +795,7 @@ init_chars(){
     fi
 }
 
-#Append a windo on POSX,POSY
+# Append a windo on POSX,POSY
 window(){
     LASTWINPOS=$POSY
     title=$1
@@ -830,19 +815,19 @@ window(){
     len=$(echo "$1" | echo $(($(wc -c)-1)))
     left=$(((cols/2) - (len/2) -1))
 
-    #draw up line
+    # Draw up line
     clean_line
     echo -ne $_TL
     for i in `seq 3 $cols`; do echo -ne $_HLINE; done
     echo -ne $_TR
-    #next line, draw title
+    # Next line, draw title
     _nl
 
-    tput sc
+    tput sc  # sc = Save cursor position  https://www.gnu.org/software/termutils/manual/termutils-2.0/html_chapter/tput_1.html
     clean_line
     echo -ne $_VLINE
     tput cuf $left
-    #set title color
+    # Set title color
     case $color in
         green)
             [[ "$OSTYPE" == "darwin"* ]] && printf "\E[01;32m" || echo -n -e "\E[01;32m"
@@ -858,9 +843,9 @@ window(){
             ;;
     esac
     
-    
+    # 
     echo $title
-    tput rc
+    tput rc  # rc = Restore cursor to position of last `sc'  https://www.gnu.org/software/termutils/manual/termutils-2.0/html_chapter/tput_1.html
     tput cuf $((cols-1))
     echo -ne $_VLINE
     [[ "$OSTYPE" == "darwin"* ]] && printf "\e[00m" || echo -n -e "\e[00m"
@@ -869,10 +854,9 @@ window(){
     addsep
     
     LASTCOLS=$cols
-
 }
 
-#append a separator, new line
+# Append separator, new line
 addsep (){
     clean_line
     echo -ne $_SEPL
@@ -882,16 +866,14 @@ addsep (){
 }
 
 
-#clean the current line
+# Clean the current line
 clean_line(){
-    tput sc
+    tput sc  # sc = Save cursor position  https://www.gnu.org/software/termutils/manual/termutils-2.0/html_chapter/tput_1.html
     #tput el
-    tput rc
-    
+    tput rc  # rc = Restore cursor to position of last `sc'  https://www.gnu.org/software/termutils/manual/termutils-2.0/html_chapter/tput_1.html
 }
 
-
-#add text on current window
+# Add text on current window
 append_file(){
     [[ "$1" != "" ]] && align="left" || align=$1
     while read l;do
@@ -899,6 +881,7 @@ append_file(){
         _append "$l" $align
     done < "$1"
 }
+
 append(){
     text=$(echo -e $1 | fold -w $((LASTCOLS-2)) -s)
     rbuffer=`create_buffer bashsimplecursesfilebuffer`
@@ -908,9 +891,10 @@ append(){
     done < $rbuffer
     rm -f $rbuffer
 }
+
 _append(){
     clean_line
-    tput sc
+    tput sc  # sc = Save cursor position  https://www.gnu.org/software/termutils/manual/termutils-2.0/html_chapter/tput_1.html
     echo -ne $_VLINE
     len=$(echo "$1" | wc -c )
     len=$((len-1))
@@ -920,34 +904,34 @@ _append(){
 
     tput cuf $left
     echo -e "$1"
-    tput rc
+    tput rc  # rc = Restore cursor to position of last `sc'  https://www.gnu.org/software/termutils/manual/termutils-2.0/html_chapter/tput_1.html
     tput cuf $((LASTCOLS-1))
     echo -ne $_VLINE
     _nl
 }
 
-#add separated values on current window
+# Add separated values on current window
 append_tabbed(){
     [[ $2 == "" ]] && echo "append_tabbed: Second argument needed" >&2 && exit 1
     [[ "$3" != "" ]] && delim=$3 || delim=":"
     clean_line
-    tput sc
+    tput sc  # sc = Save cursor position  https://www.gnu.org/software/termutils/manual/termutils-2.0/html_chapter/tput_1.html
     echo -ne $_VLINE
     len=$(echo "$1" | wc -c )
     len=$((len-1))
     left=$((LASTCOLS/$2)) 
     for i in `seq 0 $(($2))`; do
-        tput rc
+        tput rc  # rc = Restore cursor to position of last `sc'  https://www.gnu.org/software/termutils/manual/termutils-2.0/html_chapter/tput_1.html
         tput cuf $((left*i+1))
         echo "`echo $1 | cut -f$((i+1)) -d"$delim"`" 
     done
-    tput rc
+    tput rc  # rc = Restore cursor to position of last `sc'  https://www.gnu.org/software/termutils/manual/termutils-2.0/html_chapter/tput_1.html
     tput cuf $((LASTCOLS-1))
     echo -ne $_VLINE
     _nl
 }
 
-#append a command output
+# Append a command output
 append_command(){
     buff=`create_buffer command`
     echo -e "`$1`" | sed 's/ /____SPACES____/g' > $buff 2>&1
@@ -955,7 +939,7 @@ append_command(){
     rm -f $buff
 }
 
-#close the window display
+# Close the window display
 endwin(){
     clean_line
     echo -ne $_BL
@@ -964,15 +948,13 @@ endwin(){
     _nl
 }
 
-#refresh display
+# Refresh display
 refresh (){
     cat $BUFFER
     echo "" > $BUFFER
 }
 
-
-
-#main loop called by "bush simple curses"
+# Main loop
 main_loop (){
     term_init
     init_chars
@@ -1012,25 +994,30 @@ for TARGET_IDX in "${!TARGETS[@]}"; do
     # 1st window 81 cols wide
     WINDOW_SIZE=81
     if [ ${TARGET_IDX} -gt 0 ]; then
-	# 2nd window (and all the rest): a bit narrower (since timestamp suppressed)
-	WINDOW_SIZE=64
-	col_right
-	move_up
+        # 2nd window (and all the rest): a bit narrower (since timestamp suppressed)
+        WINDOW_SIZE=64
+        col_right
+        move_up
     fi
 
     window "${iTARGET} ${iLABEL}" "grey" "${WINDOW_SIZE}"
+
+    # LINES is the number of lines available in the terminal window
+    # We can only fit LINES-4 lines of our ping output (3 lines for headers on top and one line on the bottom)
+    TAIL_N_LINES=$(( LINES - 4 ))
+
     if [ ${TARGET_IDX} -gt 0 ]; then
-	# 2nd window (and all the rest):
-	# append tail line-by-line after "grepping" by awk. We suppressing excessive timestamps here.
-	# see also:
-	# # http://stackoverflow.com/questions/4165135/how-to-use-while-read-bash-to-read-the-last-line-in-a-file-if-theres-no-new
-	while IFS='' read -r line || [[ -n "${line}" ]]; do
-	    _append "${line}" left
-	done < <( tail -n ${LINES} ${iLOG_FILE} | awk '{print $3}' )
+        # 2nd window (and all the rest):
+        # append tail line-by-line after "grepping" by awk. We suppressing excessive timestamps here.
+        # see also:
+        # # http://stackoverflow.com/questions/4165135/how-to-use-while-read-bash-to-read-the-last-line-in-a-file-if-theres-no-new
+        while IFS='' read -r line || [[ -n "${line}" ]]; do
+            _append "${line}" left
+        done < <( tail -n ${TAIL_N_LINES} ${iLOG_FILE} | awk '{print $3}' )
     else
-	# 1st window (leftmost):
-	# just simply gets the output of tail command:
-	append_command "tail -n ${LINES} ${iLOG_FILE}"
+        # 1st window (leftmost):
+        # just simply gets the output of tail command:
+        append_command "tail -n ${TAIL_N_LINES} ${iLOG_FILE}"
     fi
     endwin
 
