@@ -45,13 +45,18 @@
                 the results on one screen with couple hours of history to 5-8 targets with 1 sec
                 resolution! Note: pinger-xray sends small (12 bytes payload) ICMP (type=8 ECHO)
                 packets once a second, so it does not stress your network or servers.
+
     Dependency: fping
                 To install fping:
                   - Ubuntu: sudo apt install fping
                   - Mac OS-X: brew insall fping  (if you use Homebrew package management - https://brew.sh/ )
+
  Supported OSs: Linux & OS-X
+
       Download: <a href="https://github.com/shevkoplyas/ping-xray" target="pingergit">https://github.com/shevkoplyas/ping-xray</a>
                 <a href="https://dimon.ca/ping-xray" target="dimonca">https://dimon.ca/ping-xray</a>
+
+ Usage example: ./ping-xray 10.0.0.1_wifi_router 99.251.104.1_ISP_Gateway_\(Rogers\) 8.8.8.8_DNS dimon.ca lib.ru
 
   For feedback: <a href="https://github.com/shevkoplyas/ping-xray/issues" target="gitissues">https://github.com/shevkoplyas/ping-xray/issues</a>
                or emai1 me: shevkoplyas at gmail dot com. Please report bugs/improvements/etc.
