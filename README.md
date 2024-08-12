@@ -49,7 +49,7 @@
     Dependency: fping
                 To install fping:
                   - Ubuntu: sudo apt install fping
-                  - Mac OS-X: brew insall fping  (if you use Homebrew package management - https://brew.sh/ )
+                  - Mac OS-X: brew install fping  (if you use Homebrew package management - https://brew.sh/ )
 
  Supported OSs: Linux & OS-X
 
