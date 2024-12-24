@@ -1,3 +1,5 @@
+Update: December-2024: If you're in "pinging here and there" business, you must check way better tool SmokePing -> https://oss.oetiker.ch/smokeping/
+(I'm not affiliated and yes, Smokeping is free and open source.. you welcome!-)
 
 <div align="center">
 <h2>First couple screenshots. A picture is worth a thousand words!-) Click images to enlarge:</h2>
