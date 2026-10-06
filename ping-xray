@@ -367,6 +367,12 @@ COLORMAP[${#COLORMAP[*]}]="\033[38;2;251;33;0;m"
 COLORMAP[${#COLORMAP[*]}]="\033[38;2;251;29;0;m"
 COLORMAP[${#COLORMAP[*]}]="\033[38;2;250;25;0;m"
 
+# True-colour SGR sequences end in "m", not ";m".  Some older terminals
+# accepted the extra separator; current VTE terminals ignore the colour part.
+for idx in "${!COLORMAP[@]}"; do
+    COLORMAP[$idx]="${COLORMAP[$idx]//;m/m}"
+done
+
 function get_sym_for_rtt_ms_rounded() {
     if (( $rtt_ms_rounded < 100 )); then
         sym_for_rtt_ms_rounded="${COLORMAP[${rtt_ms_rounded%?}]}."  # '%?' is here to drop last digit, so instead of 0..999 we have 0..99
@@ -676,7 +682,8 @@ while IFS='' read -r line || [[ -n "${line}" ]]; do
 
         #if [[ ! $line =~ localhost ]]; then
     else
-        echo "no match"
+        # Actually those "no match"es breaking the table view when there's network outage.. redirecting to /dev/null
+        echo "no match" > /dev/null
     fi
 
 done < <( ${PING_COMMAND} )
@@ -739,19 +746,28 @@ POSX=0
 POSY=0
 LASTWINPOS=0
 
-# Trap calls on SIGINT and SIGKILL
-# and remove buffer before exitting
+# Restore terminal state and remove the buffer on every exit path.
+cleanup(){
+    printf '\033[0m\033(B'
+    tput rmcup 2>/dev/null
+    rm -f "$BUFFER"
+}
+
 on_kill(){
     echo "Exiting"
-    rm -rf $BUFFER
+    cleanup
+    trap - EXIT
     exit 0
 }
+trap cleanup EXIT
 trap on_kill SIGINT SIGTERM
 
 # Initialize terminal
 term_init(){
     POSX=0
     POSY=0
+    tput smcup
+    printf '\033[0m\033(B' >> $BUFFER
     tput clear >> $BUFFER
 }
 
@@ -874,9 +890,7 @@ addsep (){
 
 # Clean the current line
 clean_line(){
-    tput sc  # sc = Save cursor position  https://www.gnu.org/software/termutils/manual/termutils-2.0/html_chapter/tput_1.html
-    #tput el
-    tput rc  # rc = Restore cursor to position of last `sc'  https://www.gnu.org/software/termutils/manual/termutils-2.0/html_chapter/tput_1.html
+    tput el
 }
 
 # Add text on current window
@@ -989,6 +1003,11 @@ main_loop (){
 #
 function main_curses_draw () {
 
+# A laptop resume or terminal resize can change the available height.  Do not
+# keep the startup value, otherwise stale rows are rendered forever.
+LINES=$(tput lines)
+[ -z "${LINES}" ] && LINES=60
+
 # another way to iterate 2 bash arrays in parallel would be using index
 for TARGET_IDX in "${!TARGETS[@]}"; do
     iTARGET="${TARGETS[$TARGET_IDX]}"
@@ -1040,10 +1059,12 @@ main_loop_curses (){
     init_chars
     [[ "$1" == "" ]] && time=1 || time=$1
     while [[ 1 ]]; do
-        tput cup 0 0 >> $BUFFER
-        tput il $(tput lines) >>$BUFFER
+        # Repaint from a known state.  Inserting a screenful of lines leaves
+        # terminal state corrupted after suspend/resume or a size change.
+        printf '\033[0m\033(B' >> $BUFFER
+        tput clear >> $BUFFER
         main_curses_draw >> $BUFFER
-        tput cup $(tput lines) $(tput cols) >> $BUFFER
+        tput cup $((LINES - 1)) 0 >> $BUFFER
         refresh
         sleep $time
         POSX=0
