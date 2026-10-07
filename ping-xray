@@ -514,15 +514,33 @@ else
     exit 1
 fi
 
-# Note: we're adding 'localhost' as a target, so we have reliable response each second from at least 1
-# target (so we can jump to firm assumption that other's failed if not deliveren during N-th iteration) (c) dimon.ca (patent pending;)
+# Note: we're adding 'localhost' as a target, so we have reliable response each round from at least 1
+# target (so we can jump to firm assumption that other's failed if not delivered during N-th iteration) (c) dimon.ca (patent pending;)
 #
 # note: "-i 10" added instead of "-i 1" so non-priveleted (non-root) users can use the tool just as well, otherwise following errors:
 #       fping: these options are too risky for mere mortals.
 #       fping: You need i >= 10, p >= 20, r < 20, and t >= 50
 #
-#PING_COMMAND="fping -D -l -e -i 1  -p ${SLEEP_BEFORE_NEXT_PING_MS} -b 12 ${TARGETS[*]} localhost"
- PING_COMMAND="fping -D -l -e -i 10 -p ${SLEEP_BEFORE_NEXT_PING_MS} -b 12 ${TARGETS[*]} localhost 2>/dev/null"
+function run_ping_command() {
+    local iteration_count=0
+    local round_started_epoch_s
+
+    while true; do
+        # Use a fresh fping process for every sample.  A long-lived `fping -l`
+        # can emit a burst of overdue iterations after system resume, which
+        # would otherwise be mistaken for hundreds of one-second samples.
+        round_started_epoch_s=$(date +%s)
+        fping -D -c 1 -e -r 0 -i 10 -p ${SLEEP_BEFORE_NEXT_PING_MS} -b 12 "${TARGETS[@]}" localhost 2>/dev/null | \
+            sed "s/\\[0\\]/[${iteration_count}]/g"
+        iteration_count=$(( iteration_count + 1 ))
+
+        # Successful probes finish immediately.  Wait for the next real
+        # second so the collector can never write more than one sample/sec.
+        while [ "$(date +%s)" == "${round_started_epoch_s}" ]; do
+            sleep 0.05
+        done
+    done
+}
 
 
 
@@ -592,16 +610,19 @@ while IFS='' read -r line || [[ -n "${line}" ]]; do
     # bash does support regexp: https://stackoverflow.com/a/44490624/7022062
     # parse line and extract values
     if [[ $line =~ \[([0-9]+)(\.[0-9]+\] +)([^ ]+)\ +:\ \[([0-9]+)\].*bytes,\ ([^ ]+)\ ms\ \(([^ ]+)\ avg ]]; then
-        epoch_s="${BASH_REMATCH[1]}"
         target="${BASH_REMATCH[3]}"
         per_target_log="${LOG_FILES_BASENAME}_${TARGETS[i]}"
         iteration_count="${BASH_REMATCH[4]}"
         rtt_ms="${BASH_REMATCH[5]}"
         rtt_ms_rounded="`printf %.0f $rtt_ms`"
         avg_ms="${BASH_REMATCH[6]}"
-        this_minute_start_epoch_s=$(( epoch_s / 60 * 60 ))
         
         if (( $previous_iteration_count != $iteration_count )); then
+            # fping timestamps describe its own schedule.  Use wall-clock time
+            # for the log so a resume cannot create overlong "minute" rows.
+            epoch_s=$(date +%s)
+            this_minute_start_epoch_s=$(( epoch_s / 60 * 60 ))
+
             # New 1sec bunch of pings coming. They come every 1sec and have same $iteration_count value.
             # We might miss some replies from slow targets (which took >1sec to reply)). Next steps are:
             #    1) check if current minute is over
@@ -686,7 +707,7 @@ while IFS='' read -r line || [[ -n "${line}" ]]; do
         echo "no match" > /dev/null
     fi
 
-done < <( ${PING_COMMAND} )
+done < <( run_ping_command )
 }
 #
 # MAIN PINGER LOOP (end)
@@ -1001,6 +1022,54 @@ main_loop (){
 #
 # curses will call main() periodically to redraw the "GUI" (every second)
 #
+function render_history_file() {
+    local history_file=$1
+    local show_timestamp=$2
+
+    # Log entries contain literal ANSI colour sequences followed by one visible
+    # ping symbol. Keep only the newest minute (60 symbols), including colour
+    # escapes. awk processes old pathological rows efficiently.
+    tail -n "${TAIL_N_LINES}" "${history_file}" | awk -v show_timestamp="${show_timestamp}" '
+        {
+            prefix = substr($0, 1, 17)
+            payload = substr($0, 18)
+
+            # Existing logs may contain resume bursts thousands of symbols
+            # long. Colour is less important than keeping the terminal usable;
+            # trim such corrupt rows before parsing them character-by-character.
+            if (length(payload) > 4096) {
+                gsub(/\\033\[[0-9;]*m/, "", payload)
+                output = (show_timestamp == "true" ? prefix : "")
+                print output substr(payload, length(payload) - 59)
+                next
+            }
+
+            pending = ""
+            symbol_count = 0
+            delete symbols
+
+            while (length(payload)) {
+                if (match(payload, /^\\033\[[0-9;]*m/)) {
+                    pending = pending substr(payload, 1, RLENGTH)
+                    payload = substr(payload, RLENGTH + 1)
+                    continue
+                }
+
+                symbols[symbol_count % 60] = pending substr(payload, 1, 1)
+                pending = ""
+                symbol_count++
+                payload = substr(payload, 2)
+            }
+
+            output = (show_timestamp == "true" ? prefix : "")
+            start = (symbol_count > 60 ? symbol_count - 60 : 0)
+            for (idx = start; idx < symbol_count; idx++)
+                output = output symbols[idx % 60]
+            print output pending
+        }
+    '
+}
+
 function main_curses_draw () {
 
 # A laptop resume or terminal resize can change the available height.  Do not
@@ -1033,16 +1102,15 @@ for TARGET_IDX in "${!TARGETS[@]}"; do
 
     if [ ${TARGET_IDX} -gt 0 ]; then
         # 2nd window (and all the rest):
-        # append tail line-by-line after "grepping" by awk. We suppressing excessive timestamps here.
-        # see also:
-        # # http://stackoverflow.com/questions/4165135/how-to-use-while-read-bash-to-read-the-last-line-in-a-file-if-theres-no-new
+        # Append history without timestamps.
         while IFS='' read -r line || [[ -n "${line}" ]]; do
             _append "${line}" left
-        done < <( tail -n ${TAIL_N_LINES} ${iLOG_FILE} | awk '{print $3}' )
+        done < <( render_history_file "${iLOG_FILE}" false )
     else
         # 1st window (leftmost):
-        # just simply gets the output of tail command:
-        append_command "tail -n ${TAIL_N_LINES} ${iLOG_FILE}"
+        while IFS='' read -r line || [[ -n "${line}" ]]; do
+            _append "${line}" left
+        done < <( render_history_file "${iLOG_FILE}" true )
     fi
     endwin
 
