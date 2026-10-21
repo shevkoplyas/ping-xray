@@ -522,22 +522,49 @@ fi
 #       fping: You need i >= 10, p >= 20, r < 20, and t >= 50
 #
 function run_ping_command() {
-    local iteration_count=0
-    local round_started_epoch_s
+    local ping_timeout_ms=$(( SLEEP_BEFORE_NEXT_PING_MS - 100 ))
+    local next_sample_epoch_s
+    local next_result_epoch_s
+    local now_epoch_s
+    local spool_dir
+
+    [ ${ping_timeout_ms} -lt 50 ] && ping_timeout_ms=50
+    next_sample_epoch_s=$(( $(date +%s) + 1 ))
+    next_result_epoch_s=${next_sample_epoch_s}
+    spool_dir=$(mktemp -d "${TMPDIR:-/tmp}/ping-xray.XXXXXX") || exit 1
+    trap 'rm -rf "${spool_dir}"' EXIT
 
     while true; do
-        # Use a fresh fping process for every sample.  A long-lived `fping -l`
-        # can emit a burst of overdue iterations after system resume, which
-        # would otherwise be mistaken for hundreds of one-second samples.
-        round_started_epoch_s=$(date +%s)
-        fping -D -c 1 -e -r 0 -i 10 -p ${SLEEP_BEFORE_NEXT_PING_MS} -b 12 "${TARGETS[@]}" localhost 2>/dev/null | \
-            sed "s/\\[0\\]/[${iteration_count}]/g"
-        iteration_count=$(( iteration_count + 1 ))
-
-        # Successful probes finish immediately.  Wait for the next real
-        # second so the collector can never write more than one sample/sec.
-        while [ "$(date +%s)" == "${round_started_epoch_s}" ]; do
+        now_epoch_s=$(date +%s)
+        while (( now_epoch_s < next_sample_epoch_s )); do
             sleep 0.05
+            now_epoch_s=$(date +%s)
+        done
+
+        # A suspend can make many scheduled seconds impossible to measure.
+        # Resume from the current second instead of launching a catch-up burst.
+        if (( now_epoch_s > next_sample_epoch_s )); then
+            printf 'ROUND_GAP %s\n' "${now_epoch_s}"
+            next_sample_epoch_s=${now_epoch_s}
+            next_result_epoch_s=${now_epoch_s}
+        fi
+
+        # Each round owns one calendar-second slot and runs independently.
+        # Its result goes to a private file: concurrent writers must never
+        # interleave ROUND_BEGIN/END blocks on the collector's pipe.
+        (
+            fping_output=$(fping -D -c 1 -e -r 0 -i 10 -p ${SLEEP_BEFORE_NEXT_PING_MS} -t ${ping_timeout_ms} -b 12 "${TARGETS[@]}" localhost 2>/dev/null)
+            printf 'ROUND_BEGIN %s\n%s\nROUND_END %s\n' "${next_sample_epoch_s}" "${fping_output}" "${next_sample_epoch_s}"
+        ) > "${spool_dir}/${next_sample_epoch_s}.tmp" && mv "${spool_dir}/${next_sample_epoch_s}.tmp" "${spool_dir}/${next_sample_epoch_s}" &
+
+        next_sample_epoch_s=$(( next_sample_epoch_s + 1 ))
+
+        # Emit completed rounds only in their original order.  If a prior
+        # round is still running, later rounds keep collecting independently.
+        while [ -f "${spool_dir}/${next_result_epoch_s}" ]; do
+            cat "${spool_dir}/${next_result_epoch_s}"
+            rm -f "${spool_dir}/${next_result_epoch_s}"
+            next_result_epoch_s=$(( next_result_epoch_s + 1 ))
         done
     done
 }
@@ -590,6 +617,45 @@ fi
 # start ping command and process it's output line-by-line
 # http://stackoverflow.com/questions/4165135/how-to-use-while-read-bash-to-read-the-last-line-in-a-file-if-theres-no-new
 #
+function write_ping_bucket() {
+    local sample_epoch_s=$1
+    local gap=$2
+
+    this_minute_start_epoch_s=$(( sample_epoch_s / 60 * 60 ))
+    if (( $last_minute_start_epoch_s != $this_minute_start_epoch_s )); then
+        last_minute_start_epoch_s=$this_minute_start_epoch_s
+        get_YYYYMMDDHHMM_by_epoch_s $sample_epoch_s
+
+        for idx in "${!TARGETS[@]}"; do
+            iTARGET="${TARGETS[$idx]}"
+            echo >> "${LOG_FILES_BASENAME}_${iTARGET}"
+            echo -n "${YYYYMMDDHHMM_by_epoch_s} " >> "${LOG_FILES_BASENAME}_${iTARGET}"
+        done
+    fi
+
+    echo -n "${sample_epoch_s}," >> ${LOG_FILE_CSV}
+    for idx in "${!TARGETS[@]}"; do
+        iTARGET="${TARGETS[$idx]}"
+        iSYM="${OUTPUT_PER_TARGET_SYM[$idx]}"
+        iRTT_MS="${OUTPUT_PER_TARGET_RTT[$idx]}"
+        if [ "${gap}" == "true" ]; then
+            # This second was not measured at all (scheduler delay or resume),
+            # which is distinct from a probe that timed out.
+            iSYM="\033[38;5;244m~\033[0m"
+            iRTT_MS=""
+        elif [ "${iSYM}" == "" ]; then
+            iSYM="\033[38;5;226m\033[48;5;196mX\033[0m"
+            iRTT_MS=""
+        fi
+        echo -n "${iSYM}" >> "${LOG_FILES_BASENAME}_${iTARGET}"
+        echo -n "${iRTT_MS}" >> ${LOG_FILE_CSV}
+        if [[ $idx != $TARGETS_LAST_INDEX ]]; then
+            echo -n ',' >> ${LOG_FILE_CSV}
+        fi
+    done
+    echo >> ${LOG_FILE_CSV}
+}
+
 function main_pinger_loop() {
 declare -a OUTPUT_PER_TARGET_SYM  # Array of symbols to draw for each ping probe
 declare -a OUTPUT_PER_TARGET_RTT  # Array of corresponding RTT (millisecond) values we got from each ping probe
@@ -597,114 +663,46 @@ declare -a OUTPUT_PER_TARGET_RTT  # Array of corresponding RTT (millisecond) val
 epoch_s=$( date +%s )
 last_minute_start_epoch_s=$(( epoch_s / 60 * 60 ))
 
-previous_iteration_count=0  # "previous_iteration_count" comes from fping output (see int value in square brackets in example output below)
+last_reported_epoch_s=""
+round_epoch_s=""
 while IFS='' read -r line || [[ -n "${line}" ]]; do
-    # Example output of fping, which is fed to this "while" loop:
-    # LINE: [1497324214.795189] 192.168.3.1  : [0], 40 bytes, 2.06 ms (2.06 avg, 0% loss)
-    # LINE: [1497324214.800669] 24.212.218.1 : [0], 40 bytes, 5.96 ms (5.96 avg, 0% loss)
-    # LINE: [1497324214.807130] google.com   : [0], 40 bytes, 11.3 ms (11.3 avg, 0% loss)
-    #echo "                                                               LINE: ${line}"
-
     check_if_parent_is_alive_or_exit
 
-    # bash does support regexp: https://stackoverflow.com/a/44490624/7022062
-    # parse line and extract values
-    if [[ $line =~ \[([0-9]+)(\.[0-9]+\] +)([^ ]+)\ +:\ \[([0-9]+)\].*bytes,\ ([^ ]+)\ ms\ \(([^ ]+)\ avg ]]; then
-        target="${BASH_REMATCH[3]}"
-        per_target_log="${LOG_FILES_BASENAME}_${TARGETS[i]}"
-        iteration_count="${BASH_REMATCH[4]}"
-        rtt_ms="${BASH_REMATCH[5]}"
-        rtt_ms_rounded="`printf %.0f $rtt_ms`"
-        avg_ms="${BASH_REMATCH[6]}"
-        
-        if (( $previous_iteration_count != $iteration_count )); then
-            # fping timestamps describe its own schedule.  Use wall-clock time
-            # for the log so a resume cannot create overlong "minute" rows.
-            epoch_s=$(date +%s)
-            this_minute_start_epoch_s=$(( epoch_s / 60 * 60 ))
-
-            # New 1sec bunch of pings coming. They come every 1sec and have same $iteration_count value.
-            # We might miss some replies from slow targets (which took >1sec to reply)). Next steps are:
-            #    1) check if current minute is over
-            #       then print new line beginning for GUI (only for human-readable aspect, not for csv logging. csv is simply "flat")
-            #    2) report collected rtt_ms or 'F' for missing ones (for which we failed to get replies withing previous 1sec bucket)
-            #       on both "GUI" and csv files
-            #    3) reset "per-target" buckets before we start recording new bunch (new 1sec bucket with new incremented $iteration_count)
-            #    4) store new (1st) value for the next bucket
-
-            # 1) checking if current minute is over
-            #     method-1: [by mod  $(( 1497370200 % 60 )) == 0 ] <-- this method is no good.. if we skipped this exact sec, we're screwed and will have to wait/hope till the next minute start
-            #     method-2: compare "this minute start epoch sec" to the previously reported: this_minute_start_epoch_s=$(( epoch_s / 60 * 60 ))    <-- METHOD WORKS SO MUCH BETTER!!
-            if (( $last_minute_start_epoch_s != $this_minute_start_epoch_s )); then
-                # yes, a new minute started!
-                last_minute_start_epoch_s=$this_minute_start_epoch_s
-                
-                # Function get_YYYYMMDDHHMM_by_epoch_s() sets result to: YYYYMMDDHHMM_by_epoch_s
-                get_YYYYMMDDHHMM_by_epoch_s $epoch_s
-                
-                # Print end of line and new prefix (date/time) to all target files
-                for idx in "${!TARGETS[@]}"; do
-                    iTARGET="${TARGETS[$idx]}"
-                    echo >> "${LOG_FILES_BASENAME}_${iTARGET}"
-                    echo -n "${YYYYMMDDHHMM_by_epoch_s} " >> "${LOG_FILES_BASENAME}_${iTARGET}"
-                done
-            fi
-
-            #    2) report collected rtt_ms or 'X' for missing ones (for which we failed to get replies withing previous 1sec bucket)
-            #       on both "GUI" and csv files
-            echo -n "${epoch_s}," >> ${LOG_FILE_CSV}
-            for idx in "${!TARGETS[@]}"; do
-                iTARGET="${TARGETS[$idx]}"
-                iSYM="${OUTPUT_PER_TARGET_SYM[$idx]}"
-                iRTT_MS="${OUTPUT_PER_TARGET_RTT[$idx]}"
-                if [ "${iSYM}" == "" ]; then
-                    # blank value, means this target (F)ailed to reply within 1sec
-                    #
-                    # Terminal escape colours explained: https://askubuntu.com/questions/558280/changing-colour-of-text-and-background-of-terminal
-                    #     printf '\e[38;5;196m Foreground color: red\n'
-                    #     printf '\e[48;5;0m Background color: black\n'
-                    #
-                    # Or by RGB components:
-                    #     printf '\e[38;2;255;0;0m Foreground color: red\n'
-                    #     printf '\e[48;2;0;0;0m Background color: black\n'
-                
-                    #iSYM="\e[38;5;226m\e[48;5;196mG\e[0m"        # why this doesn't work?
-                    # iSYM="\033(0x\033(B"                         # while this one works fine.
-                
-                    iSYM="\033[38;5;226m\033[48;5;196mX\033[0m"  # "X" looks better for X-Ray tool ;)
-                    #iSYM="\033[38;5;226m\033[48;5;196mF\033[0m"  # "F"
-                fi
-                echo -n "${iSYM}" >> "${LOG_FILES_BASENAME}_${iTARGET}"
-                echo -n "${iRTT_MS}" >> ${LOG_FILE_CSV}
-                if [[ $idx != $TARGETS_LAST_INDEX ]]; then
-                    echo -n ',' >> ${LOG_FILE_CSV}
-                fi
-            done
-            # we wrote all csv values, add EOL to CSV file
-            echo >> ${LOG_FILE_CSV}
-
-            #    3) reset "per-target" buckets before we start recording new bunch (new 1sec bucket with new incremented ${iteration_count} )
-            unset OUTPUT_PER_TARGET_SYM
-            previous_iteration_count="${iteration_count}"
+    if [[ $line =~ ^ROUND_BEGIN\ ([0-9]+)$ ]]; then
+        round_epoch_s="${BASH_REMATCH[1]}"
+        unset OUTPUT_PER_TARGET_SYM
+        unset OUTPUT_PER_TARGET_RTT
+    elif [[ $line =~ ^ROUND_GAP\ ([0-9]+)$ ]]; then
+        # The launcher could not run while the computer was suspended.  Keep
+        # one explicit marker, rather than fabricating every missed probe.
+        if [ "${last_reported_epoch_s}" != "" ] && (( BASH_REMATCH[1] - last_reported_epoch_s > 60 )); then
+            write_ping_bucket $(( BASH_REMATCH[1] - 1 )) true
+            last_reported_epoch_s=$(( BASH_REMATCH[1] - 1 ))
         fi
+    elif [[ $line =~ ^ROUND_END\ ([0-9]+)$ ]]; then
+        round_epoch_s="${BASH_REMATCH[1]}"
 
-        # Identify current line target's index 
-        # (we get intermixed results from fping, sometimes some targets can be missing if ping make it in 1s)
+        # Normally every independent round reaches this point, so no slot is
+        # missing.  Fill only seconds which could not exist during a suspend.
+        if [ "${last_reported_epoch_s}" != "" ] && (( round_epoch_s - last_reported_epoch_s > 1 )); then
+            while (( last_reported_epoch_s + 1 < round_epoch_s )); do
+                last_reported_epoch_s=$(( last_reported_epoch_s + 1 ))
+                write_ping_bucket ${last_reported_epoch_s} true
+            done
+        fi
+        write_ping_bucket ${round_epoch_s} false
+        last_reported_epoch_s=${round_epoch_s}
+    elif [[ $line =~ \[([0-9]+)(\.[0-9]+\] +)([^ ]+)\ +:\ \[[0-9]+\].*bytes,\ ([^ ]+)\ ms\ \(([^ ]+)\ avg ]]; then
+        target="${BASH_REMATCH[3]}"
+        rtt_ms="${BASH_REMATCH[4]}"
+        rtt_ms_rounded="`printf %.0f $rtt_ms`"
         get_target_index "${target}"
         target_idx=$?
-        
-        # Get symbol, which will characterize the ping timing (according to get_sym_for_rtt_ms_rounded() "table")
-        # function sets $sym_for_rtt_ms_rounded
-        get_sym_for_rtt_ms_rounded
-        
-        # Store result: symbol and RTT (in milliseconds)
-        OUTPUT_PER_TARGET_SYM[$target_idx]=$sym_for_rtt_ms_rounded
-        OUTPUT_PER_TARGET_RTT[$target_idx]=$rtt_ms
-
-        #if [[ ! $line =~ localhost ]]; then
-    else
-        # Actually those "no match"es breaking the table view when there's network outage.. redirecting to /dev/null
-        echo "no match" > /dev/null
+        if [ ${target_idx} -ne 255 ]; then
+            get_sym_for_rtt_ms_rounded
+            OUTPUT_PER_TARGET_SYM[$target_idx]=$sym_for_rtt_ms_rounded
+            OUTPUT_PER_TARGET_RTT[$target_idx]=$rtt_ms
+        fi
     fi
 
 done < <( run_ping_command )
